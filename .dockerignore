@@ -1,0 +1,12 @@
+.git
+.github
+.vs
+bin
+obj
+*.user
+*.lock.json
+.vscode
+Dockerfile
+.dockerignore
+!LMS.API/bin/Debug/net9.0/LMS.API.runtimeconfig.json
+!LMS.API/bin/Release/net9.0/LMS.API.runtimeconfig.json

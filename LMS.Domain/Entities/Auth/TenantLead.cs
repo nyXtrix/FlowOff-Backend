@@ -15,5 +15,5 @@ public class TenantLead : BaseEntity
 
     public string RegistrationToken { get; set; } = Guid.NewGuid().ToString();
 
-    public DateTime TokenExpiresAt { get; set; } = DateTime.Now.AddDays(1);
+    public DateTime TokenExpiresAt { get; set; } = DateTime.UtcNow.AddDays(1);
 }

@@ -1,3 +1,5 @@
+using LMS.Domain.Entities.common;
+
 namespace LMS.Domain.Entities;
 
 public class Permissions : BaseEntity

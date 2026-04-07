@@ -59,7 +59,6 @@ public class AuthService(IAppDbContext context, IConfiguration configuration, IE
         {
             TenantId = tenant.Id,
             Name = "Super Admin",
-            Level = 100
         };
         context.Roles.Add(adminRole);
         await context.SaveChangesAsync();
@@ -69,7 +68,6 @@ public class AuthService(IAppDbContext context, IConfiguration configuration, IE
             TenantId = tenant.Id,  
             RoleId = adminRole.Id,
             Name = "Company Administrator",
-            Level = 100
         };
         context.Positions.Add(adminPosition);
         await context.SaveChangesAsync();

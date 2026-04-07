@@ -94,7 +94,7 @@ public class WorkflowEngineService(IAppDbContext context) : IWorkflowEngine
                     UserId = emp.Id,
                     LeaveTypeId = leaveType.Id,
                     Balance = leaveType.DefaultAnnualAllowence,
-                    Year = DateTime.Now.Year
+                    Year = DateTime.UtcNow.Year
                 });
             }
 
@@ -136,7 +136,7 @@ public class WorkflowEngineService(IAppDbContext context) : IWorkflowEngine
             {
                 currentStep.LeaveRequest.Status = LeaveStatus.Approved;
 
-                var balance = await context.LeaveBalances.FirstOrDefaultAsync(b => b.UserId == currentStep.LeaveRequest.UserId && b.LeaveTypeId == currentStep.LeaveRequest.LeaveTypeId && b.Year == DateTime.Now.Year);
+                var balance = await context.LeaveBalances.FirstOrDefaultAsync(b => b.UserId == currentStep.LeaveRequest.UserId && b.LeaveTypeId == currentStep.LeaveRequest.LeaveTypeId && b.Year == DateTime.UtcNow.Year);
 
                 if (balance?.Balance < currentStep.LeaveRequest.TotalDays)
                 {
@@ -207,7 +207,7 @@ public class WorkflowEngineService(IAppDbContext context) : IWorkflowEngine
 
         if (request.Status == LeaveStatus.Approved)
         {
-            var balance = await context.LeaveBalances.FirstOrDefaultAsync(b => b.UserId == userId && b.LeaveTypeId == request.LeaveTypeId && b.Year == DateTime.Now.Year);
+            var balance = await context.LeaveBalances.FirstOrDefaultAsync(b => b.UserId == userId && b.LeaveTypeId == request.LeaveTypeId && b.Year == DateTime.UtcNow.Year);
             if (balance != null)
             {
                 balance.Balance += request.TotalDays;

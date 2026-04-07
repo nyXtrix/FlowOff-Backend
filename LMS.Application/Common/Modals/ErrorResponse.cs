@@ -6,13 +6,10 @@ public class AppException(int statusCode, string message, string errorCode) : Ex
     public string ErrorCode { get; } = errorCode;
 }
 
-public class ErrorResponse(string v1, string v2)
+public class ErrorResponse(string errorCode, object message)
 {
-    private readonly string v1 = v1;
-    private readonly string v2 = v2;
-
-    public string? ErrorCode { get; set; }
-    public object? Message { get; set; }
+    public string ErrorCode { get; set; } = errorCode;
+    public object Message { get; set; } = message;
 }
 
 public class ValidationErrorResponse
