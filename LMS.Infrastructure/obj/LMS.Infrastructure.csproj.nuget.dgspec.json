@@ -47,6 +47,44 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "dependencies": {
+            "FluentValidation": {
+              "target": "Package",
+              "version": "[12.1.1, )"
+            },
+            "FluentValidation.DependencyInjectionExtensions": {
+              "target": "Package",
+              "version": "[12.1.1, )"
+            },
+            "Microsoft.AspNetCore.WebUtilities": {
+              "target": "Package",
+              "version": "[9.0.0, )"
+            },
+            "Microsoft.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[9.0.2, )"
+            },
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[9.0.2, )"
+            },
+            "Microsoft.Extensions.Configuration.Abstractions": {
+              "target": "Package",
+              "version": "[10.0.5, )"
+            },
+            "Microsoft.Extensions.Identity.Core": {
+              "target": "Package",
+              "version": "[9.0.2, )"
+            },
+            "Microsoft.IdentityModel.Tokens": {
+              "target": "Package",
+              "version": "[8.5.0, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.5.0, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
@@ -150,6 +188,9 @@
             "projectReferences": {
               "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj": {
                 "projectPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj"
+              },
+              "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj": {
+                "projectPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj"
               }
             }
           }
@@ -169,6 +210,36 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "dependencies": {
+            "MailKit": {
+              "target": "Package",
+              "version": "[4.15.1, )"
+            },
+            "Microsoft.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[9.0.2, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.2, )"
+            },
+            "Microsoft.EntityFrameworkCore.Tools": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.2, )"
+            },
+            "Microsoft.Extensions.Caching.StackExchangeRedis": {
+              "target": "Package",
+              "version": "[9.0.2, )"
+            },
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
+              "target": "Package",
+              "version": "[9.0.3, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
