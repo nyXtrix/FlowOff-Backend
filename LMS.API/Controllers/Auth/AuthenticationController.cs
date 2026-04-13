@@ -38,7 +38,7 @@ public class AuthenticationController(IAuthenticationService authService) : Cont
         {
             HttpOnly = true,
             Secure = true,
-            SameSite = SameSiteMode.Lax,
+            SameSite = SameSiteMode.None,
             Expires = DateTime.UtcNow.AddDays(7)
         });
 
@@ -60,7 +60,12 @@ public class AuthenticationController(IAuthenticationService authService) : Cont
     [Authorize]
     public async Task<IActionResult> Logout()
     {
-        Response.Cookies.Delete("AuthToken");
+        Response.Cookies.Delete("AuthToken", new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None
+        });
 
         return Ok(new { message = "User logged out successfully" });
     }
