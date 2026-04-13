@@ -32,6 +32,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<Tenant>().HasIndex(t => t.Domain).IsUnique();
+        modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
+        modelBuilder.Entity<TenantLead>().HasIndex(l => l.Email).IsUnique();
+
+        modelBuilder.Entity<LeaveRequest>().HasIndex(lr => lr.TenantId);
+        modelBuilder.Entity<LeaveBalance>().HasIndex(lb => lb.TenantId);
+        modelBuilder.Entity<Position>().HasIndex(p => p.TenantId);
+        modelBuilder.Entity<Role>().HasIndex(r => r.TenantId);
+        modelBuilder.Entity<User>().HasIndex(u => u.TenantId);
 
         modelBuilder.Entity<UserRole>().HasKey(x => new { x.UserId, x.RoleId });
 

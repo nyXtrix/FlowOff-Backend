@@ -20,8 +20,11 @@ public class User : BaseEntity
     public int RoleId { get; set; }
     public int PositionId { get; set; }
     
+    public Role Role { get; set; } = null!;
     public Tenant Tenant { get; set; } = null!;
+
     public Position Position { get; set; } = null!;
     public User? Manager { get; set; }
+    public ICollection<UserPermissionOverride> UserPermissionOverrides { get; set; } = null!;
     public ICollection<User>? Repotees { get; set; }
 }

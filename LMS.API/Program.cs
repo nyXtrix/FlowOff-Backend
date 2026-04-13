@@ -14,8 +14,11 @@ using LMS.Infrastructure.Services.Email;
 using LMS.Infrastructure.Services.Redis;
 using LMS.Application.Features.Leaves.Interfaces;
 using LMS.Application.Features.Leaves.Services;
+using LMS.API.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<RouteOptions>(options => options.LowercaseUrls = true);
 
 builder.Services.AddControllers();
 
@@ -23,7 +26,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.SetIsOriginAllowed(origin => true)
+        policy.WithOrigins("http://localhost:5173", "https://your-production-url.com")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -31,7 +34,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddValidatorsFromAssembly(typeof(RegisterCompanyValidator).Assembly);
-builder.Services.AddEndpointsApiExplorer(); 
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Leave Management System API", Version = "v1" });
@@ -82,8 +85,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
 // 4. Register Infrastructure Services
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>());
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+builder.Services.AddScoped<IInvitationService, InvitationService>();
+builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 
 // 5. Configure JWT Authentication
@@ -124,7 +130,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 {
                     var cache = context.HttpContext.RequestServices.GetRequiredService<ICacheService>();
                     var token = context.SecurityToken as System.IdentityModel.Tokens.Jwt.JwtSecurityToken;
-                
+
                     if (token != null && await cache.GetAsync<string>($"blacklisted_{token.RawData}") != null)
                     {
                         context.Fail("Token has been revoked.");
@@ -186,7 +192,7 @@ var summaries = new[]
 
 app.MapGet("/weatherforecast", () =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
+    var forecast = Enumerable.Range(1, 5).Select(index =>
         new WeatherForecast
         (
             DateOnly.FromDateTime(DateTime.UtcNow.AddDays(index)),
