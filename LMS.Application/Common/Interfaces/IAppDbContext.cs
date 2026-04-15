@@ -1,6 +1,7 @@
 using LMS.Domain.Entities;
 using LMS.Domain.Entities.Auth;
 using LMS.Domain.Entities.Leave;
+using LMS.Domain.Entities.Organization;
 using LMS.Domain.Entities.Workflow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -14,7 +15,6 @@ public interface IAppDbContext
     DbSet<LeaveRequest> LeaveRequests { get; set; }
     DbSet<Role> Roles { get; set; }
     DbSet<Permissions> Permissions { get; set; }
-    DbSet<Position> Positions { get; set; }
     DbSet<RolePermission> RolePermissions { get; set; }
     DbSet<UserRole> UserRoles { get; set; }
     DbSet<UserPermissionOverride> UserPermissionOverrides { get; set; }
@@ -26,6 +26,7 @@ public interface IAppDbContext
     DbSet<LeaveApproval> LeaveApprovals { get; set; }
     DbSet<Holiday> Holidays { get; set; }
     DbSet<TenantLead> TenantLeads { get; set; }
+    DbSet<Department> Departments { get; set; }
     DatabaseFacade Database { get; }
 
 

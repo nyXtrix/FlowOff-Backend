@@ -34,23 +34,24 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
             .FirstOrDefaultAsync(r => r.ExternalId == request.RoleExternalId && r.TenantId == inviter.TenantId)
             ?? throw new AppException(404, "Role not found", "ROLE_NOT_FOUND");
 
-        var position = await context.Positions
-            .FirstOrDefaultAsync(p => p.ExternalId == request.PositionExternalId && p.TenantId == inviter.TenantId)
-            ?? throw new AppException(404, "Position not found", "POSITION_NOT_FOUND");
-
         var manager = await context.Users
             .FirstOrDefaultAsync(u => u.ExternalId == request.ManagerExternalId && u.TenantId == inviter.TenantId)
             ?? throw new AppException(404, "Manager not found", "MANAGER_NOT_FOUND");
 
+        var department = await context.Departments
+            .FirstOrDefaultAsync(d => d.ExternalId == request.DepartmentExternalId && d.TenantId == inviter.TenantId)
+            ?? throw new AppException(404, "Department not found", "DEPARTMENT_NOT_FOUND");
+
         var user = new User
         {
             TenantId = inviter.TenantId,
-            Name = request.Name,
+            FirstName = request.FirstName,
+            LastName = request.LastName,
             Email = request.Email,
             Gender = request.Gender,
             RoleId = role.Id,
-            PositionId = position.Id,
             ManagerId = manager.Id,
+            DepartmentId = department.Id,
             Status = UserStatus.Pending,
         };
         context.Users.Add(user);
@@ -69,7 +70,8 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
         var inviteLink = $"{_configuration["App:FrontendUrl"]}/set-password?token={token}";
         _ = Task.Run(async () =>
         {
-            try { await emailService.SendInviteEmailAsync(user.Email, user.Name, inviteLink); }
+            var fullName = $"{user.FirstName} {user.LastName}";
+            try { await emailService.SendInviteEmailAsync(user.Email, fullName, inviteLink); }
             catch (Exception ex) { Console.WriteLine($"[EMAIL_ERROR] Invite: {ex.Message}"); }
         });
 
@@ -120,7 +122,8 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
             invite.User.Tenant.Name,
             invite.User.Tenant.Domain,
             invite.User.ExternalId.ToString(),
-            invite.User.Name,
+            invite.User.FirstName,
+            invite.User.LastName,
             invite.User.Email
         );
     }
@@ -139,7 +142,8 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
         var resetLink = $"{_configuration["App:FrontendUrl"]}/reset-password?token={user.ResetPasswordToken}";
         _ = Task.Run(async () =>
         {
-            try { await emailService.SendForgotPasswordEmailAsync(user.Email, user.Name, resetLink); }
+            var fullName = $"{user.FirstName} {user.LastName}";
+            try { await emailService.SendForgotPasswordEmailAsync(user.Email, fullName, resetLink); }
             catch (Exception ex) { Console.WriteLine($"[EMAIL_ERROR] Reset: {ex.Message}"); }
         });
 

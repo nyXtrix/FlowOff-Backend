@@ -1,16 +1,18 @@
+using LMS.Domain.Module.Authorization;
+
 namespace LMS.Application.Features.Auth.DTOs;
 
 public record LoginRequest(string Email, string Password);
 public record AuthResponse(
     string Id, 
-    string Name, 
+    string FirstName,
+    string LastName, 
     string Email, 
     string Subdomain, 
     LMS.Domain.Enums.Gender Gender, 
     LMS.Domain.Enums.UserStatus Status, 
     string Role, 
-    string Position, 
-    IEnumerable<string> Permissions,
+    AppPermissions Permissions,
     string TenantName
 );
 public record LoginResponse(string ExchangeCode);

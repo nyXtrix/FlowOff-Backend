@@ -15,12 +15,13 @@ using LMS.Infrastructure.Services.Redis;
 using LMS.Application.Features.Leaves.Interfaces;
 using LMS.Application.Features.Leaves.Services;
 using LMS.API.Filters;
+using LMS.Application.Features.Employees.Interfaces;
+using LMS.Application.Features.Organization.Department.Interfaces;
+using LMS.Application.Features.Organization.Department.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<RouteOptions>(options => options.LowercaseUrls = true);
-
-builder.Services.AddControllers();
 
 builder.Services.AddCors(options =>
 {
@@ -62,37 +63,38 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
-    // Add X-Tenant-Subdomain header to Swagger UI
     c.OperationFilter<TenantHeaderFilter>();
 });
 
-builder.Services.AddScoped<IWorkflowEngine, WorkflowEngineService>();
+builder.Services.AddScoped<ILeaveService, LeaveService>();
+builder.Services.AddScoped<IApprovalService, ApprovalService>();
+builder.Services.AddScoped<ILeaveConfigService, LeaveConfigService>();
 
-// Fetch connection string from Environment Variables
 var defaultConnectionString = builder.Configuration.GetConnectionString("Default");
 
-// Critical Startup Validation: Fail immediately if missing
 if (string.IsNullOrWhiteSpace(defaultConnectionString))
 {
     throw new InvalidOperationException("CRITICAL: Database connection string 'ConnectionStrings__Default' is missing from environment variables.");
 }
 
-// 3. Central DB Setup
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseNpgsql(defaultConnectionString);
 });
 builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
-// 4. Register Infrastructure Services
 builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>());
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
+builder.Services.AddScoped<IEmployeeService, LMS.Application.Features.Employees.Services.EmployeeService>();
 builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
+builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 
-// 5. Configure JWT Authentication
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ILmsAuthorizationService, LMS.Application.Features.Auth.Services.Authorization.AuthorizationService>();
+
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long";
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -113,7 +115,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 context.Token = context.Request.Cookies["AuthToken"];
 
-                // Fallback: Check standard Authorization header (needed for Swagger)
                 if (string.IsNullOrEmpty(context.Token))
                 {
                     var authHeader = context.Request.Headers.Authorization.ToString();
@@ -138,8 +139,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 }
                 catch (Exception ex)
                 {
-                    // Fail-safe: if Redis is down, we allow authentication to proceed (revocation check skipped)
-                    Console.WriteLine($"⚠️ REDIS_ERROR: {ex.Message}");
+                    Console.WriteLine($"REDIS_ERROR: {ex.Message}");
                 }
             }
         };
@@ -153,15 +153,11 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 var app = builder.Build();
 
-app.UseMiddleware<ExceptionMiddleware>();
-
-app.UseCors("AllowFrontend");
-
-app.UseAuthentication();
-
-app.UseAuthorization();
-app.MapControllers();
-
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 if (args.Contains("db-migrate"))
 {
@@ -170,20 +166,23 @@ if (args.Contains("db-migrate"))
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.Migrate();
+        await DbSeeder.SeedPermissionsAsync(db);
     }
-    Console.WriteLine("Database updated successfully!");
+    Console.WriteLine("Database updated and seeded successfully!");
     return;
 }
 
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
+
+app.UseAuthentication();
+app.UseMiddleware<UserPermissionMiddleware>();
+app.UseAuthorization();
+
+app.MapControllers();
+
 
 var summaries = new[]
 {
@@ -203,6 +202,8 @@ app.MapGet("/weatherforecast", () =>
     return forecast;
 })
 .WithName("GetWeatherForecast");
+
+app.MapGet("/api/wakeup", () => Results.Ok("API is awake!")).AllowAnonymous();
 
 app.Run();
 

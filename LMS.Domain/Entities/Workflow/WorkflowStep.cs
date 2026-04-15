@@ -11,7 +11,10 @@ public class WorkflowStep : BaseEntity
 
     public ApproverType ApproverType { get; set; }
 
-    public int ApproverId { get; set; }
+    public int? ApproverId { get; set; }
 
     public int? RoleId { get; set; }
+
+    public Auth.User? Approver { get; set; }
+    public Role? Role { get; set; }
 }

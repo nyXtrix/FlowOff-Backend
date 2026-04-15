@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Identity;
 using LMS.Application.Common.Email;
+using LMS.Domain.Enums.Authorization;
 
 namespace LMS.Application.Features.Auth.Services;
 
@@ -61,26 +62,30 @@ public class OnboardingService(IAppDbContext context, IConfiguration configurati
         {
             TenantId = tenant.Id,
             Name = "Super Admin",
+            Scope = ScopeType.ALL
         };
         context.Roles.Add(adminRole);
         await context.SaveChangesAsync();
 
-        var adminPosition = new Position
-        {
-            TenantId = tenant.Id,
-            RoleId = adminRole.Id,
-            Name = "Company Administrator",
-        };
-        context.Positions.Add(adminPosition);
+        var allPermissions = await context.Permissions.ToListAsync();
+        var adminPermissions = allPermissions
+            .Where(p => !p.Name.StartsWith("MY_LEAVES."))
+            .Select(p => new RolePermission 
+            { 
+                RoleId = adminRole.Id, 
+                PermissionId = p.Id 
+            });
+
+        await context.RolePermissions.AddRangeAsync(adminPermissions);
         await context.SaveChangesAsync();
 
         var admin = new User
         {
             TenantId = tenant.Id,
-            Name = request.AdminName,
+            FirstName = request.FirstName,
+            LastName = "",
             Email = request.AdminEmail,
             Status = UserStatus.Activated,
-            PositionId = adminPosition.Id,
             RoleId = adminRole.Id
         };
 
@@ -91,7 +96,8 @@ public class OnboardingService(IAppDbContext context, IConfiguration configurati
         var loginLink = $"{_configuration["App:FrontendUrl"]}/{tenant.Domain}/login";
         _ = Task.Run(async () =>
         {
-            try { await emailService.SendWelcomeEmailAsync(admin.Email, admin.Name, tenant.Name, loginLink); }
+            var fullName = $"{admin.FirstName} {admin.LastName}";
+            try { await emailService.SendWelcomeEmailAsync(admin.Email, fullName, tenant.Name, loginLink); }
             catch (Exception ex) { Console.WriteLine($"[EMAIL_ERROR] Welcome: {ex.Message}"); }
         });
 

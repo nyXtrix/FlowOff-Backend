@@ -4,6 +4,7 @@ using LMS.Domain.Entities.Auth;
 using LMS.Application.Common.Interfaces;
 using LMS.Domain.Entities.Leave;
 using LMS.Domain.Entities.Workflow;
+using LMS.Domain.Entities.Organization;
 
 namespace LMS.Infrastructure.Persistense.DbContext;
 
@@ -14,7 +15,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
     public DbSet<LeaveRequest> LeaveRequests { get; set; } = null!;
     public DbSet<Role> Roles { get; set; } = null!;
     public DbSet<Permissions> Permissions { get; set; } = null!;
-    public DbSet<Position> Positions { get; set; } = null!;
     public DbSet<RolePermission> RolePermissions { get; set; } = null!;
     public DbSet<UserRole> UserRoles { get; set; } = null!;
     public DbSet<UserPermissionOverride> UserPermissionOverrides { get; set; } = null!;
@@ -26,6 +26,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
     public DbSet<LeaveApproval> LeaveApprovals { get; set; }
     public DbSet<Holiday> Holidays { get; set; }
     public DbSet<TenantLead> TenantLeads { get; set; }
+    public DbSet<Department> Departments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,7 +38,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
 
         modelBuilder.Entity<LeaveRequest>().HasIndex(lr => lr.TenantId);
         modelBuilder.Entity<LeaveBalance>().HasIndex(lb => lb.TenantId);
-        modelBuilder.Entity<Position>().HasIndex(p => p.TenantId);
         modelBuilder.Entity<Role>().HasIndex(r => r.TenantId);
         modelBuilder.Entity<User>().HasIndex(u => u.TenantId);
 
@@ -54,5 +54,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
 
         modelBuilder.Entity<LeaveRequest>().Property(p => p.TotalDays).HasPrecision(18, 2);
         modelBuilder.Entity<LeaveBalance>().Property(p => p.Balance).HasPrecision(18, 2);
+
+        modelBuilder.Entity<Department>()
+            .HasMany(d => d.Roles)
+            .WithOne(r => r.Department)
+            .HasForeignKey(r => r.DepartmentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Department>()
+            .HasMany(d => d.Employees)
+            .WithOne(u => u.Department)
+            .HasForeignKey(u => u.DepartmentId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

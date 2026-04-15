@@ -11,4 +11,4 @@ public interface IAuthenticationService
     Task<string> ExchangeCodeAsync(string code);
     Task<IdentifyResponse> IdentifyUserAsync(string Email);
     string GenerateToken(User user, string subdomain);
-}
+}       

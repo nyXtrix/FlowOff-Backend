@@ -8,6 +8,8 @@ using LMS.Application.Features.Auth.Interfaces;
 using LMS.Domain.Entities;
 using LMS.Domain.Entities.Auth;
 using LMS.Domain.Enums;
+using LMS.Domain.Enums.Authorization;
+using LMS.Domain.Module.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -41,35 +43,78 @@ public class AuthenticationService(IAppDbContext context, IConfiguration configu
 
     public async Task<AuthResponse> GetCurrentUserAsync(Guid externalId)
     {
+        var cacheKey = $"upr_{externalId}";
+        var cached = await _cache.GetAsync<AuthResponse>(cacheKey);
+        if (cached != null) return cached;
+
         var user = await context.Users
             .Include(u => u.Tenant)
             .Include(u => u.Role)
                 .ThenInclude(r => r.RolePermissions)
                     .ThenInclude(rp => rp.Permissions)
-            .Include(u => u.Position)
             .Include(u => u.UserPermissionOverrides)
                 .ThenInclude(upo => upo.Permissions)
-            .FirstOrDefaultAsync(u => u.ExternalId == externalId) ?? throw new AppException(404, "User not found.", "USER_NOT_FOUND");
+            .FirstOrDefaultAsync(u => u.ExternalId == externalId)
+                ?? throw new AppException(404, "User not found.", "USER_NOT_FOUND");
 
-        var permissions = user.Role.RolePermissions
-            .Select(rp => rp.Permissions.Name)
-            .Union(user.UserPermissionOverrides.Where(upo => upo.IsAllowed).Select(upo => upo.Permissions.Name))
-            .Except(user.UserPermissionOverrides.Where(upo => !upo.IsAllowed).Select(upo => upo.Permissions.Name))
-            .ToList();
+        var grantedPermissions = user.Role.RolePermissions.Select(rp => rp.Permissions.Name).ToHashSet();
+        foreach (var ov in user.UserPermissionOverrides)
+        {
+            if (ov.IsAllowed) grantedPermissions.Add(ov.Permissions.Name);
+            else grantedPermissions.Remove(ov.Permissions.Name);
+        }
+        var appPermissions = new AppPermissions();
+        foreach (var name in grantedPermissions)
+        {
+            var parts = name.Split('.');
+            if (parts.Length != 2) continue;
 
-        return new AuthResponse(
+            var moduleKey = parts[0];
+            if (!Enum.TryParse<ActionType>(parts[1], out var actionType)) continue;
+
+            if (!appPermissions.ContainsKey(moduleKey))
+                appPermissions[moduleKey] = new ModulePermission { Scope = user.Role.Scope };
+
+            appPermissions[moduleKey].Actions.Add(actionType);
+        }
+
+        var hasReportees = await context.Users.AnyAsync(u => u.ManagerId == user.Id);
+        if (hasReportees)
+        {
+            if (!appPermissions.ContainsKey("APPROVALS"))
+            {
+                appPermissions["APPROVALS"] = new ModulePermission { Scope = ScopeType.TEAM };
+            }
+            else if (appPermissions["APPROVALS"].Scope == ScopeType.SELF)
+            {
+                appPermissions["APPROVALS"].Scope = ScopeType.TEAM;
+            }
+
+            var actions = appPermissions["APPROVALS"].Actions;
+
+            if (!actions.Contains(ActionType.VIEW)) actions.Add(ActionType.VIEW);
+            if (!actions.Contains(ActionType.APPROVE)) actions.Add(ActionType.APPROVE);
+            if (!actions.Contains(ActionType.REJECT)) actions.Add(ActionType.REJECT);
+        }
+
+        var response = new AuthResponse(
             user.ExternalId.ToString(),
-            user.Name,
+            user.FirstName,
+            user.LastName,
             user.Email,
             user.Tenant.Domain,
             user.Gender,
             user.Status,
             user.Role.Name,
-            user.Position.Name,
-            permissions,
+            appPermissions,
             user.Tenant.Name
         );
+
+        await _cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(10));
+        return response;
     }
+
+
 
     public async Task<IdentifyResponse> IdentifyUserAsync(string email)
     {
@@ -120,8 +165,10 @@ public class AuthenticationService(IAppDbContext context, IConfiguration configu
         {
             new(ClaimTypes.NameIdentifier, user.ExternalId.ToString()),
             new(ClaimTypes.Email, user.Email),
-            new("Subdomain", subdomain)
+            new("Subdomain", subdomain),
+            new("TenantId", user.TenantId.ToString())
         };
+
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long"));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
