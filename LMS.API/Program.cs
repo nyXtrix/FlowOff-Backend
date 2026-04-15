@@ -203,7 +203,7 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast");
 
-app.MapGet("/api/wakeup", () => Results.Ok("API is awake!")).AllowAnonymous();
+app.MapMethods("/api/wakeup", new[] { "GET", "HEAD" }, () => Results.Ok("API is awake!")).AllowAnonymous();
 
 app.Run();
 
