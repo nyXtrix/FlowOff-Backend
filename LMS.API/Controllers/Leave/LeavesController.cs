@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using LMS.API.Filters;
+using LMS.Application.Common.Interfaces;
 using LMS.Application.Features.Leaves.DTOs.Employee;
 using LMS.Application.Features.Leaves.Interfaces;
 using LMS.Domain.Enums.Authorization;
@@ -9,16 +10,16 @@ using Microsoft.AspNetCore.Mvc;
 namespace LMS.API.Controllers.Leave;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/leave/[controller]")]
 [Authorize]
-public class LeavesController(ILeaveService leaveService) : ControllerBase
+public class LeavesController(ILeaveService leaveService, IAppDbContext context) : BaseController(context)
 {
     [AuthorizePermission("MY_LEAVES", ActionType.CREATE)]
     [HttpPost("apply")]
     public async Task<IActionResult> Apply([FromBody] ApplyLeaveRequest request)
     {
         var userExternalId = GetUserExternalId();
-        var tenantId = GetTenantId();
+        var tenantId = await GetTenantIdAsync();
         var externalId = await leaveService.ApplyLeaveAsync(request, userExternalId, tenantId);
         return Ok(new { message = "Leave request submitted successfully", id = externalId });
     }
@@ -54,7 +55,7 @@ public class LeavesController(ILeaveService leaveService) : ControllerBase
     [HttpGet("holidays")]
     public async Task<IActionResult> GetHolidays()
     {
-        var tenantId = GetTenantId();
+        var tenantId = await GetTenantIdAsync();
         var results = await leaveService.GetHolidaysAsync(tenantId);
         return Ok(results);
     }
@@ -63,11 +64,9 @@ public class LeavesController(ILeaveService leaveService) : ControllerBase
     [HttpGet("types")]
     public async Task<IActionResult> GetTypes()
     {
-        var tenantId = GetTenantId();
+        var tenantId = await GetTenantIdAsync();
         var results = await leaveService.GetAvailableLeaveTypesAsync(tenantId);
         return Ok(results);
     }
 
-    private Guid GetUserExternalId() => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
-    private int GetTenantId() => int.Parse(User.FindFirst("TenantId")?.Value ?? "0");
 }

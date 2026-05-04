@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj": {}
+    "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj": {}
   },
   "projects": {
-    "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj": {
+    "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj",
+        "projectUniqueName": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj",
         "projectName": "LMS.Application",
-        "projectPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj",
+        "projectPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj",
         "packagesPath": "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\obj\\",
+        "outputPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Application\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\NaveenkumarPalanisam\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -26,8 +26,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj": {
-                "projectPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj"
+              "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj": {
+                "projectPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj"
               }
             }
           }
@@ -48,6 +48,14 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "CsvHelper": {
+              "target": "Package",
+              "version": "[33.1.0, )"
+            },
+            "ExcelDataReader": {
+              "target": "Package",
+              "version": "[3.8.0, )"
+            },
             "FluentValidation": {
               "target": "Package",
               "version": "[12.1.1, )"
@@ -61,6 +69,10 @@
               "version": "[9.0.0, )"
             },
             "Microsoft.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[9.0.2, )"
+            },
+            "Microsoft.EntityFrameworkCore.Relational": {
               "target": "Package",
               "version": "[9.0.2, )"
             },
@@ -80,6 +92,14 @@
               "target": "Package",
               "version": "[8.5.0, )"
             },
+            "Npgsql": {
+              "target": "Package",
+              "version": "[9.0.2, )"
+            },
+            "Sylvan.Data.Csv": {
+              "target": "Package",
+              "version": "[1.4.4, )"
+            },
             "System.IdentityModel.Tokens.Jwt": {
               "target": "Package",
               "version": "[8.5.0, )"
@@ -97,6 +117,9 @@
           "assetTargetFallback": true,
           "warn": true,
           "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
@@ -105,14 +128,14 @@
         }
       }
     },
-    "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj": {
+    "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj",
+        "projectUniqueName": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj",
         "projectName": "LMS.Domain",
-        "projectPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj",
+        "projectPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj",
         "packagesPath": "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\obj\\",
+        "outputPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\NaveenkumarPalanisam\\AppData\\Roaming\\NuGet\\NuGet.Config"

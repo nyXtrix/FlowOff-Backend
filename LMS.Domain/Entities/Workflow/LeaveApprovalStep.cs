@@ -4,14 +4,20 @@ using LMS.Domain.Enums;
 
 namespace LMS.Domain.Entities.Workflow;
 
-public class LeaveApproval : BaseEntity
+public class LeaveApprovalStep : BaseEntity
 {
     public int LeaveRequestId { get; set; }
     public LeaveRequest LeaveRequest { get; set; } = null!;
-    public int ApproverId { get; set; }
-    public User Approver { get; set; } = null!;
+
+    public int? ApproverId { get; set; } 
+    public User? Approver { get; set; }
+
+    public int? RoleId { get; set; } 
+    public Role? Role { get; set; }
+
+    public ApprovalMode Mode { get; set; } = ApprovalMode.AnyOne;
     public ApprovalStatus Status { get; set; } = ApprovalStatus.Waiting;
-    public int Sequence { get; set; }
-    public DateTime? ApprovedAt { get; set; }
+    public int StepOrder { get; set; }
+    public DateTime? ActionDate { get; set; }
     public string? Comments { get; set; }
 }

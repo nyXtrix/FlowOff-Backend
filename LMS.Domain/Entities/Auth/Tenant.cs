@@ -13,4 +13,10 @@ public class Tenant : BaseEntity
 
     public ICollection<User> Users { get; set; } = null!;
 
+    public int DailyInviteLimit { get; set; } = 200;
+
+    public DateTime LastQuotaResetDate { get; set; } = DateTime.UtcNow;
+
+    public int RemainingDailyInvites { get; set; } = 200;
+
 }

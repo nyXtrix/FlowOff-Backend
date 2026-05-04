@@ -8,7 +8,7 @@ namespace LMS.API.Controllers.Auth;
 
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/auth/[controller]")]
 public class OnboardingController(IOnboardingService onboardingService) : ControllerBase
 {
 

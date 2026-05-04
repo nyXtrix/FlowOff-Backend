@@ -13,6 +13,13 @@ public enum ActionType
 public enum ScopeType
 {
     SELF,
+    DEPARTMENT,
     TEAM,
     ALL
+}
+
+public enum RoleType
+{
+    SYSTEM,
+    CUSTOM
 }

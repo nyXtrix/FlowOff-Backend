@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace LMS.API.Controllers.Auth;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/auth/[controller]")]
 public class InvitationController(IInvitationService invitationService) : ControllerBase
 {
     [Authorize]
@@ -46,5 +46,21 @@ public class InvitationController(IInvitationService invitationService) : Contro
     {
         await invitationService.ResetPasswordAsync(request);
         return Ok(new { message = "Password reset successful." });
+    }
+
+    [Authorize]
+    [HttpPost("resend/{userExternalId}")]
+    public async Task<IActionResult> ResendInvitation(Guid userExternalId)
+    {
+        await invitationService.ResendInvitationAsync(userExternalId);
+        return Ok(new {message = "Invitation resent successfully"});
+    }
+
+    [Authorize]
+    [HttpPost("cancel/{userExternalId}")]
+    public async Task<IActionResult> CancelInvitation(Guid userExternalId)
+    {
+        await invitationService.CancelInvitationAsync(userExternalId);
+        return Ok(new {message = "Invitation cancelled successfully"});
     }
 }

@@ -2,7 +2,7 @@ using LMS.Domain.Enums;
 
 namespace LMS.Application.Features.Auth.DTOs;
 
-public record InviteUserRequest(string Email, string FirstName, string LastName, Gender Gender, Guid RoleExternalId, Guid ManagerExternalId, Guid DepartmentExternalId);
+public record InviteUserRequest(string Email, string FirstName, string LastName, GenderEnum Gender, Guid RoleExternalId, Guid ManagerExternalId, Guid DepartmentExternalId);
 
 public record SetPasswordRequest(string Token, string Password, string ConfirmPassword);
 

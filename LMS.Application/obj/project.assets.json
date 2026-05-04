@@ -2,6 +2,32 @@
   "version": 3,
   "targets": {
     "net9.0": {
+      "CsvHelper/33.1.0": {
+        "type": "package",
+        "compile": {
+          "lib/net9.0/CsvHelper.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/CsvHelper.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "ExcelDataReader/3.8.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/ExcelDataReader.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/ExcelDataReader.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
       "FluentValidation/12.1.1": {
         "type": "package",
         "compile": {
@@ -114,6 +140,25 @@
       },
       "Microsoft.EntityFrameworkCore.Analyzers/9.0.2": {
         "type": "package"
+      },
+      "Microsoft.EntityFrameworkCore.Relational/9.0.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "9.0.2",
+          "Microsoft.Extensions.Caching.Memory": "9.0.2",
+          "Microsoft.Extensions.Configuration.Abstractions": "9.0.2",
+          "Microsoft.Extensions.Logging": "9.0.2"
+        },
+        "compile": {
+          "lib/net8.0/Microsoft.EntityFrameworkCore.Relational.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.EntityFrameworkCore.Relational.dll": {
+            "related": ".xml"
+          }
+        }
       },
       "Microsoft.Extensions.Caching.Abstractions/9.0.2": {
         "type": "package",
@@ -403,6 +448,35 @@
           }
         }
       },
+      "Npgsql/9.0.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.2"
+        },
+        "compile": {
+          "lib/net8.0/Npgsql.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Npgsql.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Sylvan.Data.Csv/1.4.4": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/Sylvan.Data.Csv.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Sylvan.Data.Csv.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "System.IdentityModel.Tokens.Jwt/8.5.0": {
         "type": "package",
         "dependencies": {
@@ -433,6 +507,57 @@
     }
   },
   "libraries": {
+    "CsvHelper/33.1.0": {
+      "sha512": "kqfTOZGrn7NarNeXgjh86JcpTHUoeQDMB8t9NVa/ZtlSYiV1rxfRnQ49WaJsob4AiGrbK0XDzpyKkBwai4F8eg==",
+      "type": "package",
+      "path": "csvhelper/33.1.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "csvhelper.33.1.0.nupkg.sha512",
+        "csvhelper.nuspec",
+        "lib/net462/CsvHelper.dll",
+        "lib/net462/CsvHelper.xml",
+        "lib/net47/CsvHelper.dll",
+        "lib/net47/CsvHelper.xml",
+        "lib/net48/CsvHelper.dll",
+        "lib/net48/CsvHelper.xml",
+        "lib/net8.0/CsvHelper.dll",
+        "lib/net8.0/CsvHelper.xml",
+        "lib/net9.0/CsvHelper.dll",
+        "lib/net9.0/CsvHelper.xml",
+        "lib/netstandard2.0/CsvHelper.dll",
+        "lib/netstandard2.0/CsvHelper.xml",
+        "lib/netstandard2.1/CsvHelper.dll",
+        "lib/netstandard2.1/CsvHelper.xml"
+      ]
+    },
+    "ExcelDataReader/3.8.0": {
+      "sha512": "kbUsldc5Fn9IKgzL2nr4VvN/mKqPqn8zGXUZpA7uL6svCA4psF+qMK519EhMvderpU4pAJoqk9DWpiSIkiZtXA==",
+      "type": "package",
+      "path": "exceldatareader/3.8.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "ExcelDataReader.png",
+        "README.md",
+        "exceldatareader.3.8.0.nupkg.sha512",
+        "exceldatareader.nuspec",
+        "lib/net462/ExcelDataReader.dll",
+        "lib/net462/ExcelDataReader.pdb",
+        "lib/net462/ExcelDataReader.xml",
+        "lib/net8.0/ExcelDataReader.dll",
+        "lib/net8.0/ExcelDataReader.pdb",
+        "lib/net8.0/ExcelDataReader.xml",
+        "lib/netstandard2.0/ExcelDataReader.dll",
+        "lib/netstandard2.0/ExcelDataReader.pdb",
+        "lib/netstandard2.0/ExcelDataReader.xml",
+        "lib/netstandard2.1/ExcelDataReader.dll",
+        "lib/netstandard2.1/ExcelDataReader.pdb",
+        "lib/netstandard2.1/ExcelDataReader.xml"
+      ]
+    },
     "FluentValidation/12.1.1": {
       "sha512": "EPpkIe1yh1a0OXyC100oOA8WMbZvqUu5plwhvYcb7oSELfyUZzfxV48BLhvs3kKo4NwG7MGLNgy1RJiYtT8Dpw==",
       "type": "package",
@@ -559,6 +684,21 @@
         "docs/PACKAGE.md",
         "microsoft.entityframeworkcore.analyzers.9.0.2.nupkg.sha512",
         "microsoft.entityframeworkcore.analyzers.nuspec"
+      ]
+    },
+    "Microsoft.EntityFrameworkCore.Relational/9.0.2": {
+      "sha512": "r7O4N5uaM95InVSGUj7SMOQWN0f1PBF2Y30ow7Jg+pGX5GJCRVd/1fq83lQ50YMyq+EzyHac5o4CDQA2RsjKJQ==",
+      "type": "package",
+      "path": "microsoft.entityframeworkcore.relational/9.0.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "PACKAGE.md",
+        "lib/net8.0/Microsoft.EntityFrameworkCore.Relational.dll",
+        "lib/net8.0/Microsoft.EntityFrameworkCore.Relational.xml",
+        "microsoft.entityframeworkcore.relational.9.0.2.nupkg.sha512",
+        "microsoft.entityframeworkcore.relational.nuspec"
       ]
     },
     "Microsoft.Extensions.Caching.Abstractions/9.0.2": {
@@ -1039,6 +1179,43 @@
         "microsoft.net.http.headers.nuspec"
       ]
     },
+    "Npgsql/9.0.2": {
+      "sha512": "hCbO8box7i/XXiTFqCJ3GoowyLqx3JXxyrbOJ6om7dr+eAknvBNhhUHeJVGAQo44sySZTfdVffp4BrtPeLZOAA==",
+      "type": "package",
+      "path": "npgsql/9.0.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "lib/net6.0/Npgsql.dll",
+        "lib/net6.0/Npgsql.xml",
+        "lib/net8.0/Npgsql.dll",
+        "lib/net8.0/Npgsql.xml",
+        "npgsql.9.0.2.nupkg.sha512",
+        "npgsql.nuspec",
+        "postgresql.png"
+      ]
+    },
+    "Sylvan.Data.Csv/1.4.4": {
+      "sha512": "1xZkDQ29uW2Y37NMN2nNkD59pFv8icaiu1WGmbE98m9n6jNL3IO3aM3rK4Uf6RgI+BFKbf7S5DdZA6nu5g9COw==",
+      "type": "package",
+      "path": "sylvan.data.csv/1.4.4",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Sylvan.png",
+        "lib/net6.0/Sylvan.Data.Csv.dll",
+        "lib/net6.0/Sylvan.Data.Csv.xml",
+        "lib/netstandard2.0/Sylvan.Data.Csv.dll",
+        "lib/netstandard2.0/Sylvan.Data.Csv.xml",
+        "lib/netstandard2.1/Sylvan.Data.Csv.dll",
+        "lib/netstandard2.1/Sylvan.Data.Csv.xml",
+        "license.txt",
+        "readme.md",
+        "sylvan.data.csv.1.4.4.nupkg.sha512",
+        "sylvan.data.csv.nuspec"
+      ]
+    },
     "System.IdentityModel.Tokens.Jwt/8.5.0": {
       "sha512": "ZUdVIyD2mJg5+hOtjnHFQRp+wCZraV6XTp734LFIGwVnCbvcgYKgsiUvlBCiS6fXs6wdY8wlMa7cFluD+RE+6g==",
       "type": "package",
@@ -1071,15 +1248,20 @@
   },
   "projectFileDependencyGroups": {
     "net9.0": [
+      "CsvHelper >= 33.1.0",
+      "ExcelDataReader >= 3.8.0",
       "FluentValidation >= 12.1.1",
       "FluentValidation.DependencyInjectionExtensions >= 12.1.1",
       "LMS.Domain >= 1.0.0",
       "Microsoft.AspNetCore.WebUtilities >= 9.0.0",
       "Microsoft.EntityFrameworkCore >= 9.0.2",
+      "Microsoft.EntityFrameworkCore.Relational >= 9.0.2",
       "Microsoft.Extensions.Configuration >= 9.0.2",
       "Microsoft.Extensions.Configuration.Abstractions >= 10.0.5",
       "Microsoft.Extensions.Identity.Core >= 9.0.2",
       "Microsoft.IdentityModel.Tokens >= 8.5.0",
+      "Npgsql >= 9.0.2",
+      "Sylvan.Data.Csv >= 1.4.4",
       "System.IdentityModel.Tokens.Jwt >= 8.5.0"
     ]
   },
@@ -1089,11 +1271,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj",
+      "projectUniqueName": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj",
       "projectName": "LMS.Application",
-      "projectPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj",
+      "projectPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj",
       "packagesPath": "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\obj\\",
+      "outputPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Application\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\NaveenkumarPalanisam\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -1108,8 +1290,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj": {
-              "projectPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj"
+            "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj": {
+              "projectPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj"
             }
           }
         }
@@ -1130,6 +1312,14 @@
       "net9.0": {
         "targetAlias": "net9.0",
         "dependencies": {
+          "CsvHelper": {
+            "target": "Package",
+            "version": "[33.1.0, )"
+          },
+          "ExcelDataReader": {
+            "target": "Package",
+            "version": "[3.8.0, )"
+          },
           "FluentValidation": {
             "target": "Package",
             "version": "[12.1.1, )"
@@ -1143,6 +1333,10 @@
             "version": "[9.0.0, )"
           },
           "Microsoft.EntityFrameworkCore": {
+            "target": "Package",
+            "version": "[9.0.2, )"
+          },
+          "Microsoft.EntityFrameworkCore.Relational": {
             "target": "Package",
             "version": "[9.0.2, )"
           },
@@ -1162,6 +1356,14 @@
             "target": "Package",
             "version": "[8.5.0, )"
           },
+          "Npgsql": {
+            "target": "Package",
+            "version": "[9.0.2, )"
+          },
+          "Sylvan.Data.Csv": {
+            "target": "Package",
+            "version": "[1.4.4, )"
+          },
           "System.IdentityModel.Tokens.Jwt": {
             "target": "Package",
             "version": "[8.5.0, )"
@@ -1179,6 +1381,9 @@
         "assetTargetFallback": true,
         "warn": true,
         "frameworkReferences": {
+          "Microsoft.AspNetCore.App": {
+            "privateAssets": "none"
+          },
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
           }

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using LMS.API.Filters;
+using LMS.Application.Common.Interfaces;
 using LMS.Application.Features.Leaves.DTOs.Manager;
 using LMS.Application.Features.Leaves.Interfaces;
 using LMS.Domain.Enums.Authorization;
@@ -9,9 +10,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace LMS.API.Controllers.Leave;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/leave/[controller]")]
 [Authorize]
-public class ApprovalsController(IApprovalService approvalService) : ControllerBase
+public class ApprovalsController(IApprovalService approvalService, IAppDbContext context) : BaseController(context)
 {
     [AuthorizePermission("APPROVALS", ActionType.VIEW)]
     [HttpGet("pending")]
@@ -40,5 +41,4 @@ public class ApprovalsController(IApprovalService approvalService) : ControllerB
         return Ok(new { message = "Request forwarded successfully" });
     }
 
-    private Guid GetUserExternalId() => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
 }

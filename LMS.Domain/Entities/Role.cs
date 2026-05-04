@@ -6,9 +6,15 @@ namespace LMS.Domain.Entities;
 
 public class Role : BaseEntity
 {
-    public int TenantId { get; set; }
+    public int? TenantId { get; set; }
 
     public string Name { get; set; } = null!;
+    public string Description { get; set; } = string.Empty;
+
+    public string Code { get; set; } = null!;
+    public bool IsActive { get; set; } = true;
+
+    public RoleType Type { get; set; } = RoleType.CUSTOM;
 
     public ScopeType Scope { get; set; } = ScopeType.SELF;
 

@@ -23,5 +23,5 @@ public class LeaveRequest : BaseEntity
     public User User { get; set; } = null!;
     public LeaveType LeaveType { get; set; } = null!;
 
-    public ICollection<LeaveApproval> Approvals { get; set; } = new List<LeaveApproval>();
+    public ICollection<LeaveApprovalStep> ApprovalSteps { get; set; } = new List<LeaveApprovalStep>();
 }

@@ -18,7 +18,18 @@ using LMS.API.Filters;
 using LMS.Application.Features.Employees.Interfaces;
 using LMS.Application.Features.Organization.Department.Interfaces;
 using LMS.Application.Features.Organization.Department.Services;
+using LMS.Application.Features.Auth.Services.UserInvites;
+using LMS.Infrastructure.BackgroundWorkers;
+using LMS.Application.Features.Organization.Employees.Services;
+using LMS.Application.Features.Organization.Roles.Interfaces;
+using LMS.Application.Features.Organization.Roles.Services;
+using LMS.Application.Common.Services;
+using LMS.Application.Common.Security;
+using LMS.Application.Common.Security.Strategies;
 
+
+
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<RouteOptions>(options => options.LowercaseUrls = true);
@@ -67,8 +78,12 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddScoped<ILeaveService, LeaveService>();
-builder.Services.AddScoped<IApprovalService, ApprovalService>();
 builder.Services.AddScoped<ILeaveConfigService, LeaveConfigService>();
+builder.Services.AddScoped<IApprovalService, ApprovalService>();
+builder.Services.AddScoped<IPolicyResolver, PolicyResolver>();
+builder.Services.AddScoped<IRuleEvaluator, RuleEvaluator>();
+builder.Services.AddScoped<ILeaveCalculationEngine, LeaveCalculationEngine>();
+builder.Services.AddScoped<IApprovalEngine, ApprovalEngine>();
 
 var defaultConnectionString = builder.Configuration.GetConnectionString("Default");
 
@@ -87,10 +102,19 @@ builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
-builder.Services.AddScoped<IEmployeeService, LMS.Application.Features.Employees.Services.EmployeeService>();
+builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<ILookupService, LookupService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<BulkUserInviteService>();
+builder.Services.AddScoped<IPermissionResolver, PermissionResolver>();
+builder.Services.AddScoped<IPermissionStrategy, DatabaseRoleStrategy>();
+builder.Services.AddScoped<IPermissionStrategy, SystemDefaultStrategy>();
+builder.Services.AddScoped<IPermissionStrategy, ManagerContextStrategy>();
+
+builder.Services.AddHostedService<BulkUserInviteWorker>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ILmsAuthorizationService, LMS.Application.Features.Auth.Services.Authorization.AuthorizationService>();

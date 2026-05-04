@@ -1,3 +1,4 @@
+using LMS.Domain.Enums;
 using LMS.Domain.Module.Authorization;
 
 namespace LMS.Application.Features.Auth.DTOs;
@@ -9,11 +10,13 @@ public record AuthResponse(
     string LastName, 
     string Email, 
     string Subdomain, 
-    LMS.Domain.Enums.Gender Gender, 
-    LMS.Domain.Enums.UserStatus Status, 
+    GenderEnum Gender, 
+    UserStatus Status, 
     string Role, 
+    string RoleCode,
     AppPermissions Permissions,
-    string TenantName
+    string TenantName,
+    DateTime CreatedTime
 );
 public record LoginResponse(string ExchangeCode);
 public record ExchangeRequest(string Code);

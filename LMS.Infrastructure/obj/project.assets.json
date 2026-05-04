@@ -15,6 +15,32 @@
           }
         }
       },
+      "CsvHelper/33.1.0": {
+        "type": "package",
+        "compile": {
+          "lib/net9.0/CsvHelper.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/CsvHelper.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "ExcelDataReader/3.8.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/ExcelDataReader.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/ExcelDataReader.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
       "FluentValidation/12.1.1": {
         "type": "package",
         "compile": {
@@ -983,6 +1009,19 @@
           }
         }
       },
+      "Sylvan.Data.Csv/1.4.4": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/Sylvan.Data.Csv.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Sylvan.Data.Csv.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "System.CodeDom/6.0.0": {
         "type": "package",
         "compile": {
@@ -1267,15 +1306,20 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v9.0",
         "dependencies": {
+          "CsvHelper": "33.1.0",
+          "ExcelDataReader": "3.8.0",
           "FluentValidation": "12.1.1",
           "FluentValidation.DependencyInjectionExtensions": "12.1.1",
           "LMS.Domain": "1.0.0",
           "Microsoft.AspNetCore.WebUtilities": "9.0.0",
           "Microsoft.EntityFrameworkCore": "9.0.2",
+          "Microsoft.EntityFrameworkCore.Relational": "9.0.2",
           "Microsoft.Extensions.Configuration": "9.0.2",
           "Microsoft.Extensions.Configuration.Abstractions": "10.0.5",
           "Microsoft.Extensions.Identity.Core": "9.0.2",
           "Microsoft.IdentityModel.Tokens": "8.5.0",
+          "Npgsql": "9.0.2",
+          "Sylvan.Data.Csv": "1.4.4",
           "System.IdentityModel.Tokens.Jwt": "8.5.0"
         },
         "compile": {
@@ -1283,7 +1327,10 @@
         },
         "runtime": {
           "bin/placeholder/LMS.Application.dll": {}
-        }
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
       },
       "LMS.Domain/1.0.0": {
         "type": "project",
@@ -1316,6 +1363,57 @@
         "lib/netstandard2.0/BouncyCastle.Cryptography.dll",
         "lib/netstandard2.0/BouncyCastle.Cryptography.xml",
         "packageIcon.png"
+      ]
+    },
+    "CsvHelper/33.1.0": {
+      "sha512": "kqfTOZGrn7NarNeXgjh86JcpTHUoeQDMB8t9NVa/ZtlSYiV1rxfRnQ49WaJsob4AiGrbK0XDzpyKkBwai4F8eg==",
+      "type": "package",
+      "path": "csvhelper/33.1.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "csvhelper.33.1.0.nupkg.sha512",
+        "csvhelper.nuspec",
+        "lib/net462/CsvHelper.dll",
+        "lib/net462/CsvHelper.xml",
+        "lib/net47/CsvHelper.dll",
+        "lib/net47/CsvHelper.xml",
+        "lib/net48/CsvHelper.dll",
+        "lib/net48/CsvHelper.xml",
+        "lib/net8.0/CsvHelper.dll",
+        "lib/net8.0/CsvHelper.xml",
+        "lib/net9.0/CsvHelper.dll",
+        "lib/net9.0/CsvHelper.xml",
+        "lib/netstandard2.0/CsvHelper.dll",
+        "lib/netstandard2.0/CsvHelper.xml",
+        "lib/netstandard2.1/CsvHelper.dll",
+        "lib/netstandard2.1/CsvHelper.xml"
+      ]
+    },
+    "ExcelDataReader/3.8.0": {
+      "sha512": "kbUsldc5Fn9IKgzL2nr4VvN/mKqPqn8zGXUZpA7uL6svCA4psF+qMK519EhMvderpU4pAJoqk9DWpiSIkiZtXA==",
+      "type": "package",
+      "path": "exceldatareader/3.8.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "ExcelDataReader.png",
+        "README.md",
+        "exceldatareader.3.8.0.nupkg.sha512",
+        "exceldatareader.nuspec",
+        "lib/net462/ExcelDataReader.dll",
+        "lib/net462/ExcelDataReader.pdb",
+        "lib/net462/ExcelDataReader.xml",
+        "lib/net8.0/ExcelDataReader.dll",
+        "lib/net8.0/ExcelDataReader.pdb",
+        "lib/net8.0/ExcelDataReader.xml",
+        "lib/netstandard2.0/ExcelDataReader.dll",
+        "lib/netstandard2.0/ExcelDataReader.pdb",
+        "lib/netstandard2.0/ExcelDataReader.xml",
+        "lib/netstandard2.1/ExcelDataReader.dll",
+        "lib/netstandard2.1/ExcelDataReader.pdb",
+        "lib/netstandard2.1/ExcelDataReader.xml"
       ]
     },
     "FluentValidation/12.1.1": {
@@ -3205,6 +3303,26 @@
         "stackexchange.redis.nuspec"
       ]
     },
+    "Sylvan.Data.Csv/1.4.4": {
+      "sha512": "1xZkDQ29uW2Y37NMN2nNkD59pFv8icaiu1WGmbE98m9n6jNL3IO3aM3rK4Uf6RgI+BFKbf7S5DdZA6nu5g9COw==",
+      "type": "package",
+      "path": "sylvan.data.csv/1.4.4",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Sylvan.png",
+        "lib/net6.0/Sylvan.Data.Csv.dll",
+        "lib/net6.0/Sylvan.Data.Csv.xml",
+        "lib/netstandard2.0/Sylvan.Data.Csv.dll",
+        "lib/netstandard2.0/Sylvan.Data.Csv.xml",
+        "lib/netstandard2.1/Sylvan.Data.Csv.dll",
+        "lib/netstandard2.1/Sylvan.Data.Csv.xml",
+        "license.txt",
+        "readme.md",
+        "sylvan.data.csv.1.4.4.nupkg.sha512",
+        "sylvan.data.csv.nuspec"
+      ]
+    },
     "System.CodeDom/6.0.0": {
       "sha512": "CPc6tWO1LAer3IzfZufDBRL+UZQcj5uS207NHALQzP84Vp/z6wF0Aa0YZImOQY8iStY0A2zI/e3ihKNPfUm8XA==",
       "type": "package",
@@ -3712,11 +3830,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Infrastructure\\LMS.Infrastructure.csproj",
+      "projectUniqueName": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Infrastructure\\LMS.Infrastructure.csproj",
       "projectName": "LMS.Infrastructure",
-      "projectPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Infrastructure\\LMS.Infrastructure.csproj",
+      "projectPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Infrastructure\\LMS.Infrastructure.csproj",
       "packagesPath": "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Infrastructure\\obj\\",
+      "outputPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Infrastructure\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\NaveenkumarPalanisam\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -3731,11 +3849,11 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj": {
-              "projectPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj"
+            "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj": {
+              "projectPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Application\\LMS.Application.csproj"
             },
-            "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj": {
-              "projectPath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj"
+            "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj": {
+              "projectPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.Domain\\LMS.Domain.csproj"
             }
           }
         }
@@ -3804,5 +3922,17 @@
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Package 'MailKit' 4.15.1 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-9j88-vvj5-vhgr",
+      "libraryId": "MailKit",
+      "targetGraphs": [
+        "net9.0"
+      ]
+    }
+  ]
 }

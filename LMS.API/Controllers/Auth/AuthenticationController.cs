@@ -3,12 +3,13 @@ using LMS.Application.Features.Auth.Interfaces;
 using LMS.Application.Features.Auth.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using LMS.Application.Common.Interfaces;
 
 namespace LMS.API.Controllers.Auth;
 
 [ApiController]
-[Route("api/[controller]")]
-public class AuthenticationController(IAuthenticationService authService) : ControllerBase
+[Route("api/v1/auth/[controller]")]
+public class AuthenticationController(IAuthenticationService authService, ICacheService cache) : ControllerBase
 {
     [HttpPost("identify")]
     [AllowAnonymous]
@@ -56,10 +57,44 @@ public class AuthenticationController(IAuthenticationService authService) : Cont
         return Ok(user);
     }
 
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh()
+    {
+        try
+        {
+            var newToken = await authService.RefreshTokenAsync();
+            
+            Response.Cookies.Append("AuthToken", newToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = DateTime.UtcNow.AddDays(7)
+            });
+
+            return Ok(new { message = "Token refreshed successfully" });
+        }
+        catch
+        {
+            Response.Cookies.Delete("AuthToken", new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None
+            });
+            return Unauthorized();
+        }
+    }
+
     [HttpPost("logout")]
-    [Authorize]
     public async Task<IActionResult> Logout()
     {
+        var userExternalId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userExternalId != null)
+        {
+            await cache.RemoveAsync($"upr_{userExternalId}");
+        }
+
         Response.Cookies.Delete("AuthToken", new CookieOptions
         {
             HttpOnly = true,

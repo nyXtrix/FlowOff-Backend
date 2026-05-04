@@ -20,5 +20,6 @@ public record PendingApprovalResponse(
 
 public record ForwardApprovalRequest(
     Guid ApprovalExternalId,
-    Guid NewApproverExternalId
+    Guid NewApproverExternalId,
+    string? Remarks
 );

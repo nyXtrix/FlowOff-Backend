@@ -1,10 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "IM85gvlN/f8=",
+  "dgSpecHash": "ojfzd9tl4FQ=",
   "success": true,
-  "projectFilePath": "C:\\Users\\NaveenkumarPalanisam\\OneDrive - Lumel Technologies Inc\\Documents\\LeaveManagementSystem\\LMS.API\\LMS.API.csproj",
+  "projectFilePath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.API\\LMS.API.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\bouncycastle.cryptography\\2.6.2\\bouncycastle.cryptography.2.6.2.nupkg.sha512",
+    "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\csvhelper\\33.1.0\\csvhelper.33.1.0.nupkg.sha512",
+    "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\exceldatareader\\3.8.0\\exceldatareader.3.8.0.nupkg.sha512",
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\fluentvalidation\\12.1.1\\fluentvalidation.12.1.1.nupkg.sha512",
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\fluentvalidation.dependencyinjectionextensions\\12.1.1\\fluentvalidation.dependencyinjectionextensions.12.1.1.nupkg.sha512",
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
@@ -60,6 +62,7 @@
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\7.3.0\\swashbuckle.aspnetcore.swagger.7.3.0.nupkg.sha512",
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\7.3.0\\swashbuckle.aspnetcore.swaggergen.7.3.0.nupkg.sha512",
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\swashbuckle.aspnetcore.swaggerui\\7.3.0\\swashbuckle.aspnetcore.swaggerui.7.3.0.nupkg.sha512",
+    "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\sylvan.data.csv\\1.4.4\\sylvan.data.csv.1.4.4.nupkg.sha512",
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\system.codedom\\6.0.0\\system.codedom.6.0.0.nupkg.sha512",
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\system.collections.immutable\\7.0.0\\system.collections.immutable.7.0.0.nupkg.sha512",
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\system.composition\\7.0.0\\system.composition.7.0.0.nupkg.sha512",
@@ -77,5 +80,18 @@
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\system.text.json\\9.0.2\\system.text.json.9.0.2.nupkg.sha512",
     "C:\\Users\\NaveenkumarPalanisam\\.nuget\\packages\\system.threading.channels\\7.0.0\\system.threading.channels.7.0.0.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'MailKit' 4.15.1 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-9j88-vvj5-vhgr",
+      "projectPath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.API\\LMS.API.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Users\\NaveenkumarPalanisam\\Documents\\LeaveManagementSystem\\LMS.API\\LMS.API.csproj",
+      "libraryId": "MailKit",
+      "targetGraphs": [
+        "net9.0"
+      ]
+    }
+  ]
 }

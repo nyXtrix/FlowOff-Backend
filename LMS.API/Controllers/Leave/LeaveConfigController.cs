@@ -8,15 +8,15 @@ using Microsoft.AspNetCore.Mvc;
 namespace LMS.API.Controllers.Leave;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/leave/[controller]")]
 [Authorize]
-public class LeaveConfigController(ILeaveConfigService configService) : ControllerBase
+public class LeaveConfigController(ILeaveConfigService configService, LMS.Application.Common.Interfaces.IAppDbContext context) : BaseController(context)
 {
     [AuthorizePermission("LEAVE_MGMT", ActionType.CREATE)]
     [HttpPost("types")]
     public async Task<IActionResult> CreateType([FromBody] CreateLeaveTypeRequest request)
     {
-        var tenantId = GetTenantId();
+        var tenantId = await GetTenantIdAsync();
         var externalId = await configService.CreateLeaveTypeAsync(request, tenantId);
         return Ok(new { message = "Leave type created successfully", id = externalId });
     }
@@ -25,7 +25,7 @@ public class LeaveConfigController(ILeaveConfigService configService) : Controll
     [HttpPost("holidays")]
     public async Task<IActionResult> CreateHoliday([FromBody] CreateHolidayRequest request)
     {
-        var tenantId = GetTenantId();
+        var tenantId = await GetTenantIdAsync();
         var externalId = await configService.CreateHolidayAsync(request, tenantId);
         return Ok(new { message = "Holiday created successfully", id = externalId });
     }
@@ -34,7 +34,7 @@ public class LeaveConfigController(ILeaveConfigService configService) : Controll
     [HttpDelete("holidays/{id}")]
     public async Task<IActionResult> DeleteHoliday(Guid id)
     {
-        var tenantId = GetTenantId();
+        var tenantId = await GetTenantIdAsync();
         await configService.DeleteHolidayAsync(id, tenantId);
         return Ok(new { message = "Holiday deleted successfully" });
     }
@@ -43,7 +43,7 @@ public class LeaveConfigController(ILeaveConfigService configService) : Controll
     [HttpPost("rules")]
     public async Task<IActionResult> CreateRule([FromBody] CreateWorkflowRuleRequest request)
     {
-        var tenantId = GetTenantId();
+        var tenantId = await GetTenantIdAsync();
         var externalId = await configService.CreateWorkflowRuleAsync(request, tenantId);
         return Ok(new { message = "Workflow rule created successfully", id = externalId });
     }
@@ -52,7 +52,7 @@ public class LeaveConfigController(ILeaveConfigService configService) : Controll
     [HttpGet("rules")]
     public async Task<IActionResult> GetRules()
     {
-        var tenantId = GetTenantId();
+        var tenantId = await GetTenantIdAsync();
         var results = await configService.GetWorkflowRulesAsync(tenantId);
         return Ok(results);
     }
@@ -61,10 +61,9 @@ public class LeaveConfigController(ILeaveConfigService configService) : Controll
     [HttpDelete("rules/{id}")]
     public async Task<IActionResult> DeleteRule(Guid id)
     {
-        var tenantId = GetTenantId();
+        var tenantId = await GetTenantIdAsync();
         await configService.DeleteWorkflowRuleAsync(id, tenantId);
         return Ok(new { message = "Workflow rule deleted successfully" });
     }
 
-    private int GetTenantId() => int.Parse(User.FindFirst("TenantId")?.Value ?? "0");
 }

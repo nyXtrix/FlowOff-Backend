@@ -58,32 +58,15 @@ public class OnboardingService(IAppDbContext context, IConfiguration configurati
         context.Tenants.Add(tenant);
         await context.SaveChangesAsync();
 
-        var adminRole = new Role
-        {
-            TenantId = tenant.Id,
-            Name = "Super Admin",
-            Scope = ScopeType.ALL
-        };
-        context.Roles.Add(adminRole);
-        await context.SaveChangesAsync();
-
-        var allPermissions = await context.Permissions.ToListAsync();
-        var adminPermissions = allPermissions
-            .Where(p => !p.Name.StartsWith("MY_LEAVES."))
-            .Select(p => new RolePermission 
-            { 
-                RoleId = adminRole.Id, 
-                PermissionId = p.Id 
-            });
-
-        await context.RolePermissions.AddRangeAsync(adminPermissions);
-        await context.SaveChangesAsync();
+        var adminRole = await context.Roles
+            .FirstOrDefaultAsync(r => r.TenantId == null && r.Code == "SUPER_ADMIN")
+            ?? throw new AppException(500, "System Super Admin role not found.", "SYSTEM_ROLE_MISSING");
 
         var admin = new User
         {
             TenantId = tenant.Id,
             FirstName = request.FirstName,
-            LastName = "",
+            LastName = request.LastName,
             Email = request.AdminEmail,
             Status = UserStatus.Activated,
             RoleId = adminRole.Id

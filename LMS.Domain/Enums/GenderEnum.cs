@@ -1,6 +1,6 @@
 namespace LMS.Domain.Enums;
 
-public enum Gender
+public enum GenderEnum
 {
     NotSpecified = 0,
     Male = 1,

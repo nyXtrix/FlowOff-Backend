@@ -18,7 +18,9 @@ public static class DbSeeder
             "ORGANIZATION.VIEW", "ORGANIZATION.UPDATE",
             "APPROVALS.VIEW", "APPROVALS.APPROVE", "APPROVALS.REJECT",
             "ROLE_MGMT.VIEW", "ROLE_MGMT.CREATE", "ROLE_MGMT.UPDATE", "ROLE_MGMT.DELETE",
-            "SETTINGS.VIEW", "SETTINGS.UPDATE"
+            "PROFILE.VIEW", "PROFILE.UPDATE",
+            "CALENDAR.VIEW", "CALENDAR.CREATE", "CALENDAR.UPDATE", "CALENDAR.DELETE",
+            "ADMIN_DASHBOARD.VIEW"
         };
 
         var existingPermissions = await context.Permissions.Select(p => p.Name).ToListAsync();

@@ -170,4 +170,66 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
 
         return true;
     }
+
+    public async Task ResendInvitationAsync(Guid userExternalId)
+    {
+        var user = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == userExternalId && u.Status == UserStatus.Pending)
+                   ?? throw new AppException(404, "Pending user not found or already activated", "NOT_FOUND");
+
+        var invite = await context.UserInvites.FirstOrDefaultAsync(i => i.UserId == user.Id && !i.IsUsed);
+
+        var token = Guid.NewGuid().ToString("N");
+
+        if (invite != null)
+        {
+            invite.Token = token;
+            invite.ExpiryDate = DateTime.UtcNow.AddHours(24);
+        }
+        else
+        {
+            invite = new UserInvite
+            {
+                UserId = user.Id,
+                Token = token,
+                ExpiryDate = DateTime.UtcNow.AddHours(24)
+            };
+
+            context.UserInvites.Add(invite);
+        }
+
+        await context.SaveChangesAsync();
+
+        var inviteLink = $"{_configuration["App:FrontendUrl"]}/set-password?token={token}";
+
+        _ = Task.Run(async () =>
+        {
+            var fullName = $"{user.FirstName} {user.LastName}";
+
+            try
+            {
+                await emailService.SendInviteEmailAsync(user.Email, fullName, inviteLink);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EMAIL_ERROR] Resend: {ex.Message}");
+            }
+        });
+    }
+
+    public async Task CancelInvitationAsync(Guid userExternalId)
+    {
+        var user = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == userExternalId && u.Status == UserStatus.Pending)
+                   ?? throw new AppException(404, "Pending user not found", "NOT_FOUND");
+
+        user.Status = UserStatus.InActive;
+
+        var invite = await context.UserInvites.FirstOrDefaultAsync(i => i.UserId == user.Id && !i.IsUsed);
+
+        if (invite != null)
+        {
+            invite.IsUsed = true;
+        }
+
+        await context.SaveChangesAsync();
+    }
 }
