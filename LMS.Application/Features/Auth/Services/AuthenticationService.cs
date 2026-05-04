@@ -5,29 +5,76 @@ using LMS.Application.Common.Interfaces;
 using LMS.Application.Common.Modals;
 using LMS.Application.Features.Auth.DTOs;
 using LMS.Application.Features.Auth.Interfaces;
-using LMS.Domain.Entities;
 using LMS.Domain.Entities.Auth;
 using LMS.Domain.Enums;
-using LMS.Domain.Enums.Authorization;
-using LMS.Domain.Module.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
+using Microsoft.AspNetCore.Http;
+using LMS.Application.Common.Security;
+
 namespace LMS.Application.Features.Auth.Services;
 
-public class AuthenticationService(IAppDbContext context, IConfiguration configuration, ICacheService cache) : IAuthenticationService
+public class AuthenticationService(
+    IAppDbContext context,
+    IConfiguration configuration,
+    ICacheService cache,
+    IHttpContextAccessor httpContextAccessor,
+    IPermissionResolver permissionResolver) : IAuthenticationService
 {
     private readonly PasswordHasher<User> _passwordHasher = new PasswordHasher<User>();
     private readonly IConfiguration _configuration = configuration;
     private readonly ICacheService _cache = cache;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly IPermissionResolver _permissionResolver = permissionResolver;
+
+    public async Task<string> RefreshTokenAsync()
+    {
+        var token = _httpContextAccessor.HttpContext?.Request.Cookies["AuthToken"];
+        if (string.IsNullOrEmpty(token)) throw new AppException(401, "No token found", "TOKEN_MISSING");
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long");
+
+        try
+        {
+            var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(key),
+                ValidateIssuer = true,
+                ValidIssuer = _configuration["Jwt:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = _configuration["Jwt:Audience"],
+                ValidateLifetime = false
+            }, out SecurityToken validatedToken);
+
+            var externalId = Guid.Parse(principal.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+
+            var user = await context.Users
+                .Include(u => u.Tenant)
+                .FirstOrDefaultAsync(u => u.ExternalId == externalId)
+                ?? throw new AppException(401, "User not found", "USER_NOT_FOUND");
+
+            if (user.Status != UserStatus.Activated)
+                throw new AppException(403, "Account is not active", "ACCOUNT_INACTIVE");
+
+            return GenerateToken(user, user.Tenant.Domain);
+        }
+        catch (Exception ex)
+        {
+            throw new AppException(401, "Invalid token session", "INVALID_SESSION");
+        }
+    }
 
     public async Task<string> LoginAsync(LoginRequest request, string subdomain)
     {
         var tenant = await context.Tenants.FirstOrDefaultAsync(t => t.Domain.ToLower() == subdomain.ToLower()) ?? throw new AppException(400, "Invalid subdomain.", "INVALID_SUBDOMAIN");
 
         var user = await context.Users
+            .Include(u => u.Tenant)
             .FirstOrDefaultAsync(u => u.Email == request.Email && u.TenantId == tenant.Id) ?? throw new AppException(401, "Invalid credentials.", "INVALID_CREDENTIALS");
 
         if (user.Status != UserStatus.Activated)
@@ -57,45 +104,7 @@ public class AuthenticationService(IAppDbContext context, IConfiguration configu
             .FirstOrDefaultAsync(u => u.ExternalId == externalId)
                 ?? throw new AppException(404, "User not found.", "USER_NOT_FOUND");
 
-        var grantedPermissions = user.Role.RolePermissions.Select(rp => rp.Permissions.Name).ToHashSet();
-        foreach (var ov in user.UserPermissionOverrides)
-        {
-            if (ov.IsAllowed) grantedPermissions.Add(ov.Permissions.Name);
-            else grantedPermissions.Remove(ov.Permissions.Name);
-        }
-        var appPermissions = new AppPermissions();
-        foreach (var name in grantedPermissions)
-        {
-            var parts = name.Split('.');
-            if (parts.Length != 2) continue;
-
-            var moduleKey = parts[0];
-            if (!Enum.TryParse<ActionType>(parts[1], out var actionType)) continue;
-
-            if (!appPermissions.ContainsKey(moduleKey))
-                appPermissions[moduleKey] = new ModulePermission { Scope = user.Role.Scope };
-
-            appPermissions[moduleKey].Actions.Add(actionType);
-        }
-
-        var hasReportees = await context.Users.AnyAsync(u => u.ManagerId == user.Id);
-        if (hasReportees)
-        {
-            if (!appPermissions.ContainsKey("APPROVALS"))
-            {
-                appPermissions["APPROVALS"] = new ModulePermission { Scope = ScopeType.TEAM };
-            }
-            else if (appPermissions["APPROVALS"].Scope == ScopeType.SELF)
-            {
-                appPermissions["APPROVALS"].Scope = ScopeType.TEAM;
-            }
-
-            var actions = appPermissions["APPROVALS"].Actions;
-
-            if (!actions.Contains(ActionType.VIEW)) actions.Add(ActionType.VIEW);
-            if (!actions.Contains(ActionType.APPROVE)) actions.Add(ActionType.APPROVE);
-            if (!actions.Contains(ActionType.REJECT)) actions.Add(ActionType.REJECT);
-        }
+        var appPermissions = await _permissionResolver.ResolveForUserAsync(user);
 
         var response = new AuthResponse(
             user.ExternalId.ToString(),
@@ -106,15 +115,15 @@ public class AuthenticationService(IAppDbContext context, IConfiguration configu
             user.Gender,
             user.Status,
             user.Role.Name,
+            user.Role.Code,
             appPermissions,
-            user.Tenant.Name
+            user.Tenant.Name,
+            user.CreatedAt
         );
 
         await _cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(10));
         return response;
     }
-
-
 
     public async Task<IdentifyResponse> IdentifyUserAsync(string email)
     {
@@ -166,7 +175,7 @@ public class AuthenticationService(IAppDbContext context, IConfiguration configu
             new(ClaimTypes.NameIdentifier, user.ExternalId.ToString()),
             new(ClaimTypes.Email, user.Email),
             new("Subdomain", subdomain),
-            new("TenantId", user.TenantId.ToString())
+            new("TenantExternalId", user.Tenant.ExternalId.ToString())
         };
 
 
