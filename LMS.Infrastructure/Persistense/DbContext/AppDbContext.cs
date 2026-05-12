@@ -23,6 +23,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
     public DbSet<UserPermissionOverride> UserPermissionOverrides { get; set; } = null!;
     public DbSet<UserInvite> UserInvites { get; set; } = null!;
     public DbSet<BulkUserInvite> BulkUserInvites { get; set; } = null!;
+    public DbSet<BulkUserInviteRowResult> BulkUserInviteRowResults { get; set; } = null!;
     public DbSet<LeaveType> LeaveTypes { get; set; }
     public DbSet<LeaveBalance> LeaveBalances { get; set; }
     public DbSet<WorkflowRule> WorkflowRules { get; set; }
@@ -39,6 +40,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
     public DbSet<ApprovalRule> ApprovalRules { get; set; } = null!;
     public DbSet<ApprovalStep> ApprovalSteps { get; set; } = null!;
     public DbSet<Gender> Genders { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

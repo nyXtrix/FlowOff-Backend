@@ -13,6 +13,9 @@ public class BulkUserInvite : BaseEntity
     public BulkInvitedUserStatus Status { get; set; }
     public int SuccessCount { get; set; }
     public int FailureCount { get; set; }
+    public string? FilePath { get; set; }
+    public string? ErrorMessage { get; set; }
 
+    public ICollection<BulkUserInviteRowResult> RowResults { get; set; } = new List<BulkUserInviteRowResult>();
     public Tenant Tenant { get; set; } = null!;
 }

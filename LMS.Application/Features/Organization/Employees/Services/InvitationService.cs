@@ -1,8 +1,8 @@
 using System.Text;
 using LMS.Application.Common.Interfaces;
 using LMS.Application.Common.Modals;
-using LMS.Application.Features.Auth.DTOs;
-using LMS.Application.Features.Auth.Interfaces;
+using LMS.Application.Features.Organization.Employees.DTOs;
+using LMS.Application.Features.Organization.Employees.Interfaces;
 using LMS.Domain.Entities;
 using LMS.Domain.Entities.Auth;
 using LMS.Domain.Entities.Leave;
@@ -11,8 +11,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using LMS.Application.Features.Auth.Interfaces;
 
-namespace LMS.Application.Features.Auth.Services;
+namespace LMS.Application.Features.Organization.Employees.Services;
 
 public class InvitationService(IAppDbContext context, IConfiguration configuration, IEmailService emailService, IAuthenticationService authService) : IInvitationService
 {
@@ -171,10 +172,33 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
         return true;
     }
 
+    public async Task<InviteDetailsResponse> VerifyResetTokenAsync(string token)
+    {
+        var user = await context.Users
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u => u.ResetPasswordToken == token && u.ResetTokenExpiresAt > DateTime.UtcNow) 
+            ?? throw new AppException(400, "Invalid or expired reset token.", "INVALID_TOKEN");
+
+        return new InviteDetailsResponse(
+            user.Tenant.Name,
+            user.Tenant.Domain,
+            user.ExternalId.ToString(),
+            user.FirstName,
+            user.LastName,
+            user.Email
+        );
+    }
+
     public async Task ResendInvitationAsync(Guid userExternalId)
     {
-        var user = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == userExternalId && u.Status == UserStatus.Pending)
-                   ?? throw new AppException(404, "Pending user not found or already activated", "NOT_FOUND");
+        var user = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == userExternalId && 
+                                                              (u.Status == UserStatus.Pending || u.Status == UserStatus.InActive))
+                   ?? throw new AppException(404, "User not found or already activated", "NOT_FOUND");
+
+        if (user.Status == UserStatus.InActive)
+        {
+            user.Status = UserStatus.Pending;
+        }
 
         var invite = await context.UserInvites.FirstOrDefaultAsync(i => i.UserId == user.Id && !i.IsUsed);
 

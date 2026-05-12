@@ -1,14 +1,18 @@
 using System.Security.Claims;
-using LMS.Application.Features.Auth.DTOs;
-using LMS.Application.Features.Auth.Interfaces;
+using LMS.Application.Common.Interfaces;
+using LMS.Application.Features.Organization.Employees.DTOs;
+using LMS.Application.Features.Organization.Employees.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
-namespace LMS.API.Controllers.Auth;
+namespace LMS.API.Controllers.Organization;
 
 [ApiController]
-[Route("api/v1/auth/[controller]")]
-public class InvitationController(IInvitationService invitationService) : ControllerBase
+[Route("api/v1/organization/[controller]")]
+[Authorize]
+[EnableRateLimiting("fixed")]
+public class InvitationController(IInvitationService invitationService, IAppDbContext context) : BaseController(context)
 {
     [Authorize]
     [HttpPost("invite")]
@@ -19,6 +23,7 @@ public class InvitationController(IInvitationService invitationService) : Contro
         return Ok(new { inviteToken = token });
     }
 
+    [AllowAnonymous]
     [HttpGet("invite-details")]
     public async Task<IActionResult> GetInviteDetails([FromQuery] string token)
     {
@@ -26,13 +31,15 @@ public class InvitationController(IInvitationService invitationService) : Contro
         return Ok(result);
     }
 
+    [AllowAnonymous]
     [HttpPost("set-password")]
     public async Task<IActionResult> SetPassword([FromBody] SetPasswordRequest request)
     {
         var exchangeCode = await invitationService.SetPasswordAsync(request);
-        return Ok(new LoginResponse(exchangeCode));
+        return Ok(new { exchangeCode = exchangeCode }); 
     }
 
+    [AllowAnonymous]
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
@@ -41,11 +48,20 @@ public class InvitationController(IInvitationService invitationService) : Contro
         return Ok(new { message = "If an account exists, a reset link has been sent." });
     }
 
+    [AllowAnonymous]
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
         await invitationService.ResetPasswordAsync(request);
         return Ok(new { message = "Password reset successful." });
+    }
+
+    [AllowAnonymous]
+    [HttpGet("verify-reset-token")]
+    public async Task<IActionResult> VerifyResetToken([FromQuery] string token)
+    {
+        var result = await invitationService.VerifyResetTokenAsync(token);
+        return Ok(result);
     }
 
     [Authorize]

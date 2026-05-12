@@ -21,5 +21,6 @@ public record LeaveBalanceResponse(
     Guid LeaveTypeExternalId,
     string LeaveType,
     decimal Balance,
+    decimal Total,
     int Year
 );

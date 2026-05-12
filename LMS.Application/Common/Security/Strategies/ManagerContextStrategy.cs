@@ -1,4 +1,5 @@
 using LMS.Application.Common.Interfaces;
+using LMS.Domain.Enums;
 using LMS.Domain.Enums.Authorization;
 using LMS.Domain.Module.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ public class ManagerContextStrategy(IAppDbContext context) : IPermissionStrategy
         var user = contextData.User;
         var p = contextData.Permissions;
 
-        var hasReportees = await context.Users.AnyAsync(u => u.ManagerId == user.Id);
+        var hasReportees = await context.Users.AnyAsync(u => u.ManagerId == user.Id && u.Status == UserStatus.Activated);
         if (hasReportees)
         {
             EnsureModule(p, "TEAM", [ActionType.VIEW], ScopeType.TEAM);

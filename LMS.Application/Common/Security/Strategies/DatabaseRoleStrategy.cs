@@ -9,8 +9,12 @@ public class DatabaseRoleStrategy : IPermissionStrategy
     public Task ExecuteAsync(PermissionContext context)
     {
         var user = context.User;
-        var grantedPermissions = user.Role.RolePermissions.Select(rp => rp.Permissions.Name).ToHashSet();
         
+        var permissionMap = user.Role.RolePermissions
+            .Select(rp => new { rp.Permissions.Name, rp.Scope })
+            .ToList();
+
+        var grantedPermissions = permissionMap.Select(p => p.Name).ToHashSet();
         foreach (var ov in user.UserPermissionOverrides)
         {
             if (ov.IsAllowed) grantedPermissions.Add(ov.Permissions.Name);
@@ -25,8 +29,19 @@ public class DatabaseRoleStrategy : IPermissionStrategy
             var moduleKey = parts[0];
             if (!Enum.TryParse<ActionType>(parts[1], out var actionType)) continue;
 
+            var scope = permissionMap.FirstOrDefault(p => p.Name == name)?.Scope ?? user.Role.Scope;
+
             if (!context.Permissions.ContainsKey(moduleKey))
-                context.Permissions[moduleKey] = new ModulePermission { Scope = user.Role.Scope };
+            {
+                context.Permissions[moduleKey] = new ModulePermission { Scope = scope };
+            }
+            else
+            {
+                if (scope > context.Permissions[moduleKey].Scope)
+                {
+                    context.Permissions[moduleKey].Scope = scope;
+                }
+            }
 
             if (!context.Permissions[moduleKey].Actions.Contains(actionType))
                 context.Permissions[moduleKey].Actions.Add(actionType);

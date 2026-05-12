@@ -1,4 +1,6 @@
+using System.Linq;
 using System.Text.Json;
+using LMS.Application.Common.Modals;
 using LMS.Application.Features.Leaves.Interfaces;
 using LMS.Application.Features.Leaves.Models;
 
@@ -6,35 +8,61 @@ namespace LMS.Application.Features.Leaves.Services;
 
 public class RuleEvaluator : IRuleEvaluator
 {
-    public bool Evaluate(string ConditionJson, EvaluationContext context)
+    private static readonly JsonSerializerOptions _options = new() { PropertyNameCaseInsensitive = true };
+
+    public bool Evaluate(string conditionJson, EvaluationContext context)
     {
-        if (string.IsNullOrEmpty(ConditionJson) || ConditionJson == "[]") return true;
+        if (string.IsNullOrEmpty(conditionJson) || conditionJson == "[]" || conditionJson == "{}") return true;
 
         try
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var rules = JsonSerializer.Deserialize<List<RuleCondition>>(ConditionJson, options);
+            var root = JsonSerializer.Deserialize<RuleGroup>(conditionJson, _options);
+            if (root == null) return true;
 
-            if (rules == null || rules.Count == 0) return true;
-
-            foreach (var rule in rules)
-            {
-                var actual = GetContextValue(rule.Metric, context);
-
-                if (!Compare(actual, rule.Operator, rule.Value)) return false;
-            }
-            return true;
+            return EvaluateGroup(root, context);
         }
-        catch
+        catch (Exception ex)
         {
-            return true;
+            return false;
         }
+    }
+
+    private bool EvaluateGroup(RuleGroup group, EvaluationContext context)
+    {
+        if (group.Conditions == null || group.Conditions.Count == 0) return true;
+
+        var isAnd = group.Operator.Equals("AND", StringComparison.OrdinalIgnoreCase);
+
+        foreach (var element in group.Conditions)
+        {
+            bool result;
+            if (element.TryGetProperty("operator", out _))
+            {
+                var subGroup = JsonSerializer.Deserialize<RuleGroup>(element.GetRawText(), _options);
+                result = subGroup != null && EvaluateGroup(subGroup, context);
+            }
+            else
+            {
+                var condition = JsonSerializer.Deserialize<RuleCondition>(element.GetRawText(), _options);
+                result = condition != null && EvaluateCondition(condition, context);
+            }
+
+            if (isAnd && !result) return false;
+            if (!isAnd && result) return true;
+        }
+
+        return isAnd;
+    }
+
+    private bool EvaluateCondition(RuleCondition condition, EvaluationContext context)
+    {
+        var actualValue = GetContextValue(condition.Metric, context);
+        return Compare(actualValue, condition.Operator, condition.Value);
     }
 
     private object? GetContextValue(string metric, EvaluationContext context)
     {
-        return metric.ToUpper()
-        switch
+        return metric.ToUpper() switch
         {
             "DURATION" => context.Duration,
             "LEAVE_TYPE" => context.LeaveTypeCode,
@@ -45,27 +73,43 @@ public class RuleEvaluator : IRuleEvaluator
         };
     }
 
-    private static bool Compare(object? actual, string operation, string target)
+    private static bool Compare(object? actual, string op, object target)
     {
         if (actual == null) return false;
 
         var sActual = actual.ToString() ?? "";
+        var sTarget = target?.ToString() ?? "";
 
-        bool IsDecimal(out decimal a, out decimal t)
+        if (op.Equals("IN", StringComparison.OrdinalIgnoreCase) || op.Equals("NOT_IN", StringComparison.OrdinalIgnoreCase))
         {
-            var parsedA = decimal.TryParse(sActual, out a);
-            var parsedT = decimal.TryParse(target, out t);
-            return parsedA && parsedT;
+            var isNotIn = op.Equals("NOT_IN", StringComparison.OrdinalIgnoreCase);
+            if (target is JsonElement element && element.ValueKind == JsonValueKind.Array)
+            {
+                var items = element.EnumerateArray().Select(x => x.ToString()).ToList();
+                var contains = items.Any(i => i.Equals(sActual, StringComparison.OrdinalIgnoreCase));
+                return isNotIn ? !contains : contains;
+            }
+            return false;
         }
 
-        return operation.ToUpper() switch
+        if (decimal.TryParse(sActual, out var dActual) && decimal.TryParse(sTarget, out var dTarget))
         {
-            "EQ" => sActual.Equals(target, StringComparison.OrdinalIgnoreCase),
-            "NEQ" => !sActual.Equals(target, StringComparison.OrdinalIgnoreCase),
-            "GT" => IsDecimal(out var a1, out var t1) && a1 > t1,
-            "LT" => IsDecimal(out var a2, out var t2) && a2 < t2,
-            "GTE" => IsDecimal(out var a3, out var t3) && a3 >= t3,
-            "LTE" => IsDecimal(out var a4, out var t4) && a4 <= t4,
+            return op.ToUpper() switch
+            {
+                "EQ" => dActual == dTarget,
+                "NEQ" => dActual != dTarget,
+                "GT" => dActual > dTarget,
+                "LT" => dActual < dTarget,
+                "GTE" => dActual >= dTarget,
+                "LTE" => dActual <= dTarget,
+                _ => false
+            };
+        }
+
+        return op.ToUpper() switch
+        {
+            "EQ" => sActual.Equals(sTarget, StringComparison.OrdinalIgnoreCase),
+            "NEQ" => !sActual.Equals(sTarget, StringComparison.OrdinalIgnoreCase),
             _ => false
         };
     }

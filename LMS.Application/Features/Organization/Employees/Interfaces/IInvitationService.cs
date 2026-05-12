@@ -1,6 +1,6 @@
-using LMS.Application.Features.Auth.DTOs;
+using LMS.Application.Features.Organization.Employees.DTOs;
 
-namespace LMS.Application.Features.Auth.Interfaces;
+namespace LMS.Application.Features.Organization.Employees.Interfaces;
 
 public interface IInvitationService
 {
@@ -9,6 +9,7 @@ public interface IInvitationService
     Task<InviteDetailsResponse> GetInviteDetailsAsync(string token);
     Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request, string subdomain);
     Task<bool> ResetPasswordAsync(ResetPasswordRequest request);
+    Task<InviteDetailsResponse> VerifyResetTokenAsync(string token);
     Task ResendInvitationAsync(Guid userExternalId);
     Task CancelInvitationAsync(Guid userExternalId);
 }

@@ -21,6 +21,7 @@ public interface IAppDbContext
     DbSet<UserPermissionOverride> UserPermissionOverrides { get; set; }
     DbSet<UserInvite> UserInvites { get; set; }
     DbSet<BulkUserInvite> BulkUserInvites { get; set; }
+    DbSet<BulkUserInviteRowResult> BulkUserInviteRowResults { get; set; }
     DbSet<LeaveType> LeaveTypes { get; set; }
     DbSet<LeaveBalance> LeaveBalances { get; set; }
     DbSet<WorkflowRule> WorkflowRules { get; set; }
@@ -37,6 +38,7 @@ public interface IAppDbContext
     DbSet<ApprovalRule> ApprovalRules { get; set; }
     DbSet<ApprovalStep> ApprovalSteps { get; set; }
     DbSet<Gender> Genders { get; set; }
+    DbSet<Notification> Notifications { get; set; }
     DatabaseFacade Database { get; }
 
 

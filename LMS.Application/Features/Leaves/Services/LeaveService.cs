@@ -7,14 +7,17 @@ using LMS.Domain.Entities.Workflow;
 using LMS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using LMS.Application.Common.Extension;
+using LMS.Application.Common.DTOs;
+using LMS.Application.Features.Notifications.Interfaces;
 
 namespace LMS.Application.Features.Leaves.Services;
 
 public class LeaveService(
-    IAppDbContext context, 
-    IPolicyResolver policyResolver, 
-    ILeaveCalculationEngine leaveCalculationEngine, 
-    IApprovalEngine approvalEngine) : ILeaveService
+    IAppDbContext context,
+    IPolicyResolver policyResolver,
+    ILeaveCalculationEngine leaveCalculationEngine,
+    IApprovalEngine approvalEngine,
+    INotificationService notificationService) : ILeaveService
 {
     public async Task<Guid> ApplyLeaveAsync(ApplyLeaveRequest request, Guid userExternalId, int tenantId)
     {
@@ -22,7 +25,15 @@ public class LeaveService(
         try
         {
             var user = await context.Users.GetUserByExternalIdAsync(userExternalId);
-            
+
+            var hasOverlap = await context.LeaveRequests.AnyAsync(r => r.UserId == user.Id && r.Status != LeaveStatus.Cancelled && r.Status != LeaveStatus.Rejected
+                                                                      && request.StartDate <= r.EndDate && request.EndDate >= r.StartDate);
+
+            if (hasOverlap)
+            {
+                throw new AppException(400, "You already have a pending or approved leave request during this period", "OVERLAPPING_LEAVE");
+            }
+
             var leaveType = await context.LeaveTypes.FirstOrDefaultAsync(lt => lt.ExternalId == request.LeaveTypeExternalId && lt.TenantId == tenantId)
                 ?? throw new AppException(404, "Leave type not found", "NOT_FOUND");
 
@@ -30,11 +41,11 @@ public class LeaveService(
             var weekOffPolicy = await policyResolver.ResolveWeekOffPolicyAsync(userExternalId, tenantId);
 
             var workingDays = await leaveCalculationEngine.CalculateLeaveDaysAsync(
-                request.StartDate, 
-                request.EndDate, 
-                userExternalId, 
-                tenantId, 
-                usagePolicy, 
+                request.StartDate,
+                request.EndDate,
+                userExternalId,
+                tenantId,
+                usagePolicy,
                 weekOffPolicy);
 
             var balance = await context.LeaveBalances.FirstOrDefaultAsync(b => b.UserId == user.Id && b.LeaveTypeId == leaveType.Id && b.Year == DateTime.UtcNow.Year);
@@ -42,6 +53,8 @@ public class LeaveService(
             {
                 throw new AppException(400, "Insufficient leave balance", "INSUFFICIENT_BALANCE");
             }
+
+            balance.Balance -= workingDays;
 
             var chainSteps = await approvalEngine.GenerateApprovalChainAsync(userExternalId, leaveType.Id, workingDays, tenantId);
 
@@ -70,6 +83,44 @@ public class LeaveService(
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
 
+            var firstStep = chainSteps.FirstOrDefault(s => s.Status == ApprovalStatus.Pending);
+            if (firstStep != null)
+            {
+                var tenantDomain = await context.Tenants
+                    .Where(t => t.Id == tenantId)
+                    .Select(t => t.Domain)
+                    .FirstOrDefaultAsync() ?? "";
+
+                var baseUrl = string.IsNullOrEmpty(tenantDomain) ? "" : $"/{tenantDomain}";
+                var notificationTitle = "New Leave Request";
+                var notificationMessage = $"{user.FirstName} {user.LastName} has applied for {leaveType.Name} from {request.StartDate:MMM dd} to {request.EndDate:MMM dd} ({workingDays} days).";
+
+                if (firstStep.ApproverId.HasValue)
+                {
+                    var approverExternalId = await context.Users
+                        .Where(u => u.Id == firstStep.ApproverId.Value)
+                        .Select(u => u.ExternalId)
+                        .FirstOrDefaultAsync();
+
+                    if (approverExternalId != Guid.Empty)
+                    {
+                        await notificationService.SendNotificationAsync(approverExternalId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                    }
+                }
+                else if (firstStep.RoleId.HasValue)
+                {
+                    var approverExternalIds = await context.UserRoles
+                        .Where(ur => ur.RoleId == firstStep.RoleId.Value)
+                        .Select(ur => ur.User.ExternalId)
+                        .ToListAsync();
+
+                    foreach (var approverExtId in approverExternalIds)
+                    {
+                        await notificationService.SendNotificationAsync(approverExtId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                    }
+                }
+            }
+
             return leaveRequest.ExternalId;
         }
         catch (Exception ex)
@@ -79,14 +130,52 @@ public class LeaveService(
         }
     }
 
-    public async Task<List<MyLeaveRequestResponse>> GetMyHistoryAsync(Guid userExternalId)
+    public async Task<PaginatedResult<MyLeaveRequestResponse>> GetMyHistoryAsync(Guid userExternalId, QueryRequest request)
     {
         var user = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == userExternalId)
             ?? throw new AppException(404, "User not found", "NOT_FOUND");
 
-        return await context.LeaveRequests
+        var query = context.LeaveRequests
             .Include(r => r.LeaveType)
-            .Where(r => r.UserId == user.Id)
+            .Where(r => r.UserId == user.Id);
+
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+        {
+            var search = request.SearchTerm.ToLower().Trim();
+            query = query.Where(r => r.Reason.ToLower().Contains(search) || r.LeaveType.Name.ToLower().Contains(search));
+        }
+
+        if (request.Filters != null)
+        {
+            if (request.Filters.TryGetValue("status", out var statusStr))
+            {
+                if (int.TryParse(statusStr, out var statusInt) && Enum.IsDefined(typeof(LeaveStatus), statusInt))
+                {
+                    query = query.Where(r => (int)r.Status == statusInt);
+                }
+                else if (Enum.TryParse<LeaveStatus>(statusStr, true, out var status))
+                {
+                    query = query.Where(r => r.Status == status);
+                }
+            }
+
+            if (request.Filters.TryGetValue("type", out var typeStr) && Guid.TryParse(typeStr, out var typeId))
+            {
+                query = query.Where(r => r.LeaveType.ExternalId == typeId);
+            }
+
+            if (request.Filters.TryGetValue("from", out var fromStr) && DateTime.TryParse(fromStr, out var fromDate))
+            {
+                query = query.Where(r => r.StartDate >= DateTime.SpecifyKind(fromDate.Date, DateTimeKind.Utc));
+            }
+
+            if (request.Filters.TryGetValue("to", out var toStr) && DateTime.TryParse(toStr, out var toDate))
+            {
+                query = query.Where(r => r.EndDate <= DateTime.SpecifyKind(toDate.Date, DateTimeKind.Utc));
+            }
+        }
+
+        return await query
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new MyLeaveRequestResponse(
                 r.ExternalId,
@@ -97,7 +186,7 @@ public class LeaveService(
                 r.Status.ToString(),
                 r.CreatedAt
             ))
-            .ToListAsync();
+            .ToPaginatedResultAsync(request);
     }
 
     public async Task<List<LeaveBalanceResponse>> GetMyBalancesAsync(Guid userExternalId)
@@ -112,6 +201,7 @@ public class LeaveService(
                 b.LeaveType.ExternalId,
                 b.LeaveType.Name,
                 b.Balance,
+                b.LeaveType.DefaultAnnualAllowence,
                 b.Year
             ))
             .ToListAsync();
@@ -136,7 +226,7 @@ public class LeaveService(
             throw new AppException(400, "Too late to cancel: request has already passed final cancellation stages.", "CANCEL_BLOCKED");
         }
 
-        if (request.Status == LeaveStatus.Approved)
+        if (request.Status == LeaveStatus.Approved || request.Status == LeaveStatus.Pending)
         {
             var balance = await context.LeaveBalances.FirstOrDefaultAsync(b => b.UserId == user.Id && b.LeaveTypeId == request.LeaveTypeId && b.Year == DateTime.UtcNow.Year);
             if (balance != null) balance.Balance += request.TotalDays;
@@ -168,4 +258,27 @@ public class LeaveService(
             .ToListAsync();
     }
 
+    public async Task<decimal> CalculateActualDaysAsync(DateTime startDate, DateTime endDate, Guid userExternalId, int tenantId)
+    {
+        var utcStart = DateTime.SpecifyKind(startDate.Date, DateTimeKind.Utc);
+        var utcEnd = DateTime.SpecifyKind(endDate.Date, DateTimeKind.Utc);
+
+        try
+        {
+            var usagePolicy = await policyResolver.ResolveUsagePolicyAsync(userExternalId, tenantId);
+            var weekOffPolicy = await policyResolver.ResolveWeekOffPolicyAsync(userExternalId, tenantId);
+
+            return await leaveCalculationEngine.CalculateLeaveDaysAsync(
+                utcStart,
+                utcEnd,
+                userExternalId,
+                tenantId,
+                usagePolicy,
+                weekOffPolicy);
+        }
+        catch (AppException ex) when (ex.ErrorCode == "NOT_FOUND")
+        {
+            return (decimal)(utcEnd - utcStart).TotalDays + 1;
+        }
+    }
 }

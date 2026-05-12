@@ -16,4 +16,6 @@ public class BalancePolicy : BaseEntity
     public bool IsEncaseable { get; set; }
     public decimal MaxEncashmentLimit { get; set; }
     public RoundingRule RoundingRule { get; set; }
+
+    public virtual LeaveType LeaveType { get; set; } = null!;
 }

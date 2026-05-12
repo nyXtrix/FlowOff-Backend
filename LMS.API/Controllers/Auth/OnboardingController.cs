@@ -4,16 +4,20 @@ using LMS.Application.Features.Auth.DTOs;
 using FluentValidation;
 using LMS.Application.Common.Modals;
 
+using Microsoft.AspNetCore.RateLimiting;
+
 namespace LMS.API.Controllers.Auth;
 
 
 [ApiController]
 [Route("api/v1/auth/[controller]")]
+[EnableRateLimiting("fixed")]
 public class OnboardingController(IOnboardingService onboardingService) : ControllerBase
 {
 
 
     [HttpPost("register-company")]
+    [EnableRateLimiting("company-registration")]
     public async Task<IActionResult> RegisterCompany([FromBody] RegisterCompanyRequest request)
     {
         var exchangeCode = await onboardingService.RegisterCompanyAsync(request);
@@ -27,7 +31,7 @@ public class OnboardingController(IOnboardingService onboardingService) : Contro
 
         return Ok(new { message = "Inquiry received" });
     }
-
+    
     [HttpGet("lead-details")]
     public async Task<IActionResult> GetLeadDetails([FromQuery] string token)
     {

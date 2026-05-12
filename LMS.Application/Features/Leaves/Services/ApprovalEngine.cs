@@ -36,16 +36,13 @@ public class ApprovalEngine(IAppDbContext context, IRuleEvaluator evaluator, ILo
         else
         {
             var superAdminRole = await context.Roles
-                .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.Code.ToUpper() == "SUPER_ADMIN");
+                .Where(r => r.Code.ToUpper() == "SUPER_ADMIN" && (r.TenantId == tenantId || r.TenantId == null))
+                .OrderByDescending(r => r.TenantId)
+                .FirstOrDefaultAsync();
 
             if (superAdminRole != null)
             {
                 AddStepToChain(chain, addedTargets, roleId: superAdminRole.Id);
-            }
-            else
-            {
-                logger.LogCritical("Critical Error: Employee {UserId} has no manager and no SUPER_ADMIN role found for tenant {TenantId}.", user.Id, tenantId);
-                throw new AppException(404, "Manager or Fallback Approver not found. Please contact system admin.", "NO_APPROVER_FOUND");
             }
         }
 
@@ -61,13 +58,36 @@ public class ApprovalEngine(IAppDbContext context, IRuleEvaluator evaluator, ILo
             {
                 foreach (var s in rule.Steps.OrderBy(x => x.Sequence))
                 {
-                    if (s.ApproverType == ApproverType.Role && int.TryParse(s.ApproverValue, out var rid))
+                    if (s.ApproverType == ApproverType.Manager)
                     {
-                        AddStepToChain(chain, addedTargets, roleId: rid);
+                        if (user.ManagerId.HasValue)
+                        {
+                            AddStepToChain(chain, addedTargets, approverId: user.ManagerId);
+                        }
                     }
-                    else if (s.ApproverType == ApproverType.SpecificUser && int.TryParse(s.ApproverValue, out var uid))
+                    else if (s.ApproverType == ApproverType.Role)
                     {
-                        AddStepToChain(chain, addedTargets, approverId: uid);
+                        if (int.TryParse(s.ApproverValue, out var rid))
+                        {
+                            AddStepToChain(chain, addedTargets, roleId: rid);
+                        }
+                        else if (Guid.TryParse(s.ApproverValue, out var guid))
+                        {
+                            var role = await context.Roles.FirstOrDefaultAsync(r => r.ExternalId == guid && (r.TenantId == tenantId || r.TenantId == null));
+                            if (role != null) AddStepToChain(chain, addedTargets, roleId: role.Id);
+                        }
+                    }
+                    else if (s.ApproverType == ApproverType.SpecificUser)
+                    {
+                        if (int.TryParse(s.ApproverValue, out var uid))
+                        {
+                            AddStepToChain(chain, addedTargets, approverId: uid);
+                        }
+                        else if (Guid.TryParse(s.ApproverValue, out var guid))
+                        {
+                            var targetUser = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == guid && u.TenantId == tenantId);
+                            if (targetUser != null) AddStepToChain(chain, addedTargets, approverId: targetUser.Id);
+                        }
                     }
                 }
             }

@@ -1,3 +1,4 @@
+using System.Text.Json;
 namespace LMS.Application.Features.Leaves.Models;
 
 public class EvaluationContext
@@ -9,9 +10,15 @@ public class EvaluationContext
     public int TeamSize { get; set; }
 }
 
+public class RuleGroup
+{
+    public string Operator { get; set; } = "AND";
+    public List<JsonElement> Conditions { get; set; } = new();
+}
+
 public class RuleCondition
 {
     public string Metric { get; set; } = null!;
     public string Operator { get; set; } = null!;
-    public string Value { get; set; } = null!;
+    public object Value { get; set; } = null!;
 }

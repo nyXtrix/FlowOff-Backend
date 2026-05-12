@@ -12,17 +12,32 @@ public class SystemDefaultStrategy : IPermissionStrategy
         var p = context.Permissions;
         var roleCode = context.User.Role.Code;
 
-        EnsureModule(p, "PROFILE", [ActionType.VIEW], ScopeType.SELF);
-        EnsureModule(p, "CALENDAR", [ActionType.VIEW], ScopeType.ALL);
-
         if (roleCode == "SUPER_ADMIN")
         {
-            EnsureModule(p, "ADMIN_DASHBOARD", [ActionType.VIEW], ScopeType.ALL);
-            p.Remove("DASHBOARD");
+            var allActions = Enum.GetValues<ActionType>().ToList();
+            var modules = new[] { 
+                "DASHBOARD", "POLICY", "LEAVE_MGMT", "EMPLOYEE_MGMT", 
+                "ORGANIZATION", "APPROVALS", "ROLE_MGMT", "PROFILE", 
+                "CALENDAR", "ADMIN_DASHBOARD", "TEAM",
+                "NOTIFICATION"
+            };
+
+            foreach (var module in modules)
+            {
+                p[module] = new ModulePermission { 
+                    Scope = ScopeType.ALL, 
+                    Actions = allActions.ToList() 
+                };
+            }
+
             p.Remove("MY_LEAVES");
+            return Task.CompletedTask;
         }
+
         else
         {
+            EnsureModule(p, "PROFILE", [ActionType.VIEW], ScopeType.SELF);
+            EnsureModule(p, "CALENDAR", [ActionType.VIEW], ScopeType.ALL);
             EnsureModule(p, "DASHBOARD", [ActionType.VIEW], ScopeType.SELF);
 
             p.Remove("MY_LEAVES");

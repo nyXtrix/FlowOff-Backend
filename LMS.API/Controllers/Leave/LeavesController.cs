@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using LMS.API.Filters;
+using LMS.Application.Common.DTOs;
 using LMS.Application.Common.Interfaces;
 using LMS.Application.Features.Leaves.DTOs.Employee;
 using LMS.Application.Features.Leaves.Interfaces;
@@ -7,11 +8,14 @@ using LMS.Domain.Enums.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Microsoft.AspNetCore.RateLimiting;
+
 namespace LMS.API.Controllers.Leave;
 
 [ApiController]
-[Route("api/v1/leave/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
+[EnableRateLimiting("fixed")]
 public class LeavesController(ILeaveService leaveService, IAppDbContext context) : BaseController(context)
 {
     [AuthorizePermission("MY_LEAVES", ActionType.CREATE)]
@@ -25,11 +29,11 @@ public class LeavesController(ILeaveService leaveService, IAppDbContext context)
     }
 
     [AuthorizePermission("MY_LEAVES", ActionType.VIEW)]
-    [HttpGet("history")]
-    public async Task<IActionResult> GetHistory()
+    [HttpGet("my-leaves")]
+    public async Task<IActionResult> GetMyLeaves([FromQuery] QueryRequest request)
     {
         var userExternalId = GetUserExternalId();
-        var results = await leaveService.GetMyHistoryAsync(userExternalId);
+        var results = await leaveService.GetMyHistoryAsync(userExternalId, request);
         return Ok(results);
     }
 
@@ -69,4 +73,13 @@ public class LeavesController(ILeaveService leaveService, IAppDbContext context)
         return Ok(results);
     }
 
+    [AuthorizePermission("MY_LEAVES", ActionType.CREATE)]
+    [HttpGet("calculate-days")]
+    public async Task<IActionResult> CalculateDays([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+    {
+        var userExternalId = GetUserExternalId();
+        var tenantId = await GetTenantIdAsync();
+        var days = await leaveService.CalculateActualDaysAsync(startDate, endDate, userExternalId, tenantId);
+        return Ok(new { days });
+    }
 }

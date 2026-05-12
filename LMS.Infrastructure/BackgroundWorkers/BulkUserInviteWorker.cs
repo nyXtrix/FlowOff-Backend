@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
+using LMS.Application.Features.Organization.Employees.Services;
 
 namespace LMS.Infrastructure.BackgroundWorkers;
 
@@ -24,8 +25,32 @@ public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory) : Backgroun
                     var context = scope.ServiceProvider.GetRequiredService<IAppDbContext>();
                     var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
                     var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+                    var bulkService = scope.ServiceProvider.GetRequiredService<BulkUserInviteService>();
 
-                    await ResetDailyQuotasAsync(context);
+                    try 
+                    {
+                        await ResetDailyQuotasAsync(context);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[BULK_QUOTA_ERROR] Failed to reset quotas: {ex.Message}");
+                    }
+
+                    var queuedOperations = await context.BulkUserInvites
+                        .Where(b => b.Status == LMS.Domain.Enums.Users.BulkInvitedUserStatus.Queued)
+                        .ToListAsync(stoppingToken);
+
+                    foreach (var op in queuedOperations)
+                    {
+                        try 
+                        {
+                            await bulkService.ProcessUploadAsync(op.ExternalId);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[BULK_PROCESS_ERROR] {op.ExternalId}: {ex.Message}");
+                        }
+                    }
 
                     var activeTenants = await context.Tenants
                         .Where(t => t.RemainingDailyInvites > 0)
@@ -56,25 +81,10 @@ public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory) : Backgroun
                                 var fullName = $"{user.FirstName} {user.LastName}";
                                 await emailService.SendInviteEmailAsync(user.Email, fullName, inviteLink);
 
-                                var bulkOperation = await context.BulkUserInvites.FindAsync(user.BulkUserInvitedId);
-                                if (bulkOperation != null)
-                                {
-                                    bulkOperation.ProcessedRows++;
-                                    bulkOperation.SuccessCount++;
-                                    if (bulkOperation.ProcessedRows >= bulkOperation.TotalRows)
-                                        bulkOperation.Status = LMS.Domain.Enums.Users.BulkInvitedUserStatus.Completed;
-                                }
-
                                 tenant.RemainingDailyInvites--;
                             }
                             catch (Exception ex)
                             {
-                                var bulkOperation = await context.BulkUserInvites.FindAsync(user.BulkUserInvitedId);
-                                if (bulkOperation != null)
-                                {
-                                    bulkOperation.ProcessedRows++;
-                                    bulkOperation.FailureCount++;
-                                }
                                 Console.WriteLine($"[BULK_INVITE_ERROR] {user.Email}: {ex.Message}");
                             }
                         }
@@ -88,7 +98,7 @@ public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory) : Backgroun
                 Console.WriteLine($"[BULK_WORKER_WAITING] Database or schema not ready: {ex.Message}");
             }
 
-            await Task.Delay(TimeSpan.FromMinutes(15), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
         }
     }
 

@@ -134,7 +134,7 @@ public class AuthenticationService(
 
         var user = await context.Users.Include(u => u.Tenant).FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
 
-        if (user == null) return new IdentifyResponse(null, UserLoginStatus.NotFound, false);
+        if (user == null) return new IdentifyResponse(null, null, UserLoginStatus.NotFound, false);
 
         var loginStatus = user.Status switch
         {
@@ -145,7 +145,7 @@ public class AuthenticationService(
         };
 
 
-        var response = new IdentifyResponse(user.Tenant.Domain, loginStatus, true);
+        var response = new IdentifyResponse(user.Tenant.Domain, user.Tenant.Name, loginStatus, true);
 
         await _cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(5));
 

@@ -1,5 +1,7 @@
 using System.Text;
 using LMS.API.Middleware;
+using LMS.Application.Features.Organization.Employees.Interfaces;
+using LMS.Application.Features.Organization.Employees.Services;
 using LMS.Application.Features.Auth.Interfaces;
 using LMS.Application.Features.Auth.Services;
 using LMS.Infrastructure.Persistense.DbContext;
@@ -16,16 +18,26 @@ using LMS.Application.Features.Leaves.Interfaces;
 using LMS.Application.Features.Leaves.Services;
 using LMS.API.Filters;
 using LMS.Application.Features.Employees.Interfaces;
-using LMS.Application.Features.Organization.Department.Interfaces;
 using LMS.Application.Features.Organization.Department.Services;
-using LMS.Application.Features.Auth.Services.UserInvites;
-using LMS.Infrastructure.BackgroundWorkers;
-using LMS.Application.Features.Organization.Employees.Services;
-using LMS.Application.Features.Organization.Roles.Interfaces;
-using LMS.Application.Features.Organization.Roles.Services;
+using LMS.Application.Features.Organization.Department.Interfaces;
 using LMS.Application.Common.Services;
+using LMS.Application.Features.Organization.Roles.Services;
+using LMS.Application.Features.Organization.Roles.Interfaces;
+using LMS.Application.Features.Organization.Team.Services;
+using LMS.Application.Features.Organization.Team.Interfaces;
 using LMS.Application.Common.Security;
 using LMS.Application.Common.Security.Strategies;
+using LMS.Infrastructure.BackgroundWorkers;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
+using LMS.Infrastructure.Services.Notifications;
+using LMS.Application.Features.Notifications.Interfaces;
+using LMS.Application.Features.Notifications.Services;
+using LMS.Application.Features.Calendar.Interfaces;
+using LMS.Application.Features.Calendar.Services;
+using LMS.Application.Features.Dashboard.Interfaces;
+using LMS.Application.Features.Dashboard.Services;
 
 
 
@@ -81,9 +93,13 @@ builder.Services.AddScoped<ILeaveService, LeaveService>();
 builder.Services.AddScoped<ILeaveConfigService, LeaveConfigService>();
 builder.Services.AddScoped<IApprovalService, ApprovalService>();
 builder.Services.AddScoped<IPolicyResolver, PolicyResolver>();
+builder.Services.AddScoped<IPolicyService, PolicyService>();
 builder.Services.AddScoped<IRuleEvaluator, RuleEvaluator>();
 builder.Services.AddScoped<ILeaveCalculationEngine, LeaveCalculationEngine>();
 builder.Services.AddScoped<IApprovalEngine, ApprovalEngine>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICalendarService, CalendarService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 var defaultConnectionString = builder.Configuration.GetConnectionString("Default");
 
@@ -98,7 +114,33 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
-builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>());
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddFixedWindowLimiter("fixed", opt =>
+    {
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.PermitLimit = 60;
+        opt.QueueLimit = 0;
+    });
+
+    options.AddPolicy("company-registration", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromDays(1),
+                QueueLimit = 0
+            }));
+});
+
+builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>())
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
@@ -109,12 +151,15 @@ builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<ILookupService, LookupService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<BulkUserInviteService>();
+builder.Services.AddScoped<ITeamService, TeamServices>();
 builder.Services.AddScoped<IPermissionResolver, PermissionResolver>();
 builder.Services.AddScoped<IPermissionStrategy, DatabaseRoleStrategy>();
 builder.Services.AddScoped<IPermissionStrategy, SystemDefaultStrategy>();
 builder.Services.AddScoped<IPermissionStrategy, ManagerContextStrategy>();
+builder.Services.AddSingleton<INotificationConnectionManager, NotificationConnectionManager>();
 
 builder.Services.AddHostedService<BulkUserInviteWorker>();
+builder.Services.AddHostedService<NotificationHeartbeatWorker>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ILmsAuthorizationService, LMS.Application.Features.Auth.Services.Authorization.AuthorizationService>();
@@ -183,6 +228,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+if (args.Contains("db-reset"))
+{
+    Console.WriteLine("Resetting database data and clearing cache...");
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await DbSeeder.ResetDatabaseAsync(db);
+        await DbSeeder.SeedPermissionsAsync(db);
+        await DbSeeder.SeedRolesAsync(db);
+    }
+    Console.WriteLine("Database reset successfully!");
+    return;
+}
+
 if (args.Contains("db-migrate"))
 {
     Console.WriteLine("Applying database migrations...");
@@ -191,6 +250,8 @@ if (args.Contains("db-migrate"))
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.Migrate();
         await DbSeeder.SeedPermissionsAsync(db);
+        await DbSeeder.SeedRolesAsync(db);
+        await DbSeeder.SeedHolidaysAsync(db);
     }
     Console.WriteLine("Database updated and seeded successfully!");
     return;
@@ -200,6 +261,7 @@ app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseMiddleware<UserPermissionMiddleware>();

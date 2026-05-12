@@ -4,11 +4,13 @@ using LMS.Application.Features.Auth.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using LMS.Application.Common.Interfaces;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LMS.API.Controllers.Auth;
 
 [ApiController]
 [Route("api/v1/auth/[controller]")]
+[EnableRateLimiting("fixed")]
 public class AuthenticationController(IAuthenticationService authService, ICacheService cache) : ControllerBase
 {
     [HttpPost("identify")]

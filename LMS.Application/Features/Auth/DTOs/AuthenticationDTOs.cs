@@ -21,7 +21,7 @@ public record AuthResponse(
 public record LoginResponse(string ExchangeCode);
 public record ExchangeRequest(string Code);
 public record IdentifyRequest(string Email);
-public record IdentifyResponse(string? Subdomain, UserLoginStatus Status, bool Exists);
+public record IdentifyResponse(string? Subdomain, string? CompanyName, UserLoginStatus Status, bool Exists);
 public enum UserLoginStatus
 {
     Active = 1,

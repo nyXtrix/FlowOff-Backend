@@ -1,3 +1,5 @@
+using LMS.Domain.Enums;
+
 namespace LMS.Application.Features.Leaves.DTOs.Manager;
 
 public record ProcessApprovalRequest(
@@ -6,7 +8,7 @@ public record ProcessApprovalRequest(
     string? Remarks
 );
 
-public record PendingApprovalResponse(
+public record ApprovalListResponse(
     Guid ApprovalExternalId,
     Guid RequestExternalId,
     string EmployeeName,
@@ -15,11 +17,23 @@ public record PendingApprovalResponse(
     DateTime EndDate,
     decimal TotalDays,
     string Reason,
-    DateTime AppliedAt
+    DateTime AppliedAt,
+    ApprovalStatus Status
 );
 
 public record ForwardApprovalRequest(
     Guid ApprovalExternalId,
     Guid NewApproverExternalId,
     string? Remarks
+);
+
+public record StatCardDto(
+    string Type,
+    string Title,
+    string Value,
+    string Subtitle
+);
+
+public record ApprovalStatsResponse(
+    List<StatCardDto> StatCards
 );

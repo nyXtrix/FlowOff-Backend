@@ -7,12 +7,14 @@ using LMS.Application.Features.Employees.Interfaces;
 using LMS.Domain.Enums.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LMS.API.Controllers.Organization;
 
 [ApiController]
 [Route("api/v1/organization/employees")]
 [Authorize]
+[EnableRateLimiting("fixed")]
 public class EmployeesController(IEmployeeService employeeService, IAppDbContext context) : BaseController(context)
 {
     [AuthorizePermission("EMPLOYEE_MGMT", ActionType.VIEW)]
@@ -44,6 +46,17 @@ public class EmployeesController(IEmployeeService employeeService, IAppDbContext
     {
         var tenantId = await GetTenantIdAsync();
         var result = await employeeService.GetRecentInvitesAsync(tenantId);
+
+        return Ok(result);
+    }
+
+    [HttpGet("profile/{externalId}")]
+    public async Task<IActionResult> GetProfile(Guid externalId)
+    {
+        var tenantId = await GetTenantIdAsync();
+
+        var userExternalId = GetUserExternalId();
+        var result = await employeeService.GetEmployeeProfileAsync(externalId, userExternalId, tenantId);
 
         return Ok(result);
     }

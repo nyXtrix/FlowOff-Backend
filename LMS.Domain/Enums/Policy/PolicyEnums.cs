@@ -33,7 +33,7 @@ public enum RoundingRule
     Hour
 }
 
-public enum ApprovalMode
+public enum WorkflowApprovalMode
 {
     Sequential,
     ParallelAll,
