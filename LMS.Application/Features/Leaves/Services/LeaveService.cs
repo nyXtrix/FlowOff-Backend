@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using LMS.Application.Common.Extension;
 using LMS.Application.Common.DTOs;
 using LMS.Application.Features.Notifications.Interfaces;
+using LMS.Application.Features.Leaves.DTOs.Manager;
 
 namespace LMS.Application.Features.Leaves.Services;
 
@@ -17,6 +18,7 @@ public class LeaveService(
     IPolicyResolver policyResolver,
     ILeaveCalculationEngine leaveCalculationEngine,
     IApprovalEngine approvalEngine,
+    IApprovalService approvalService,
     INotificationService notificationService) : ILeaveService
 {
     public async Task<Guid> ApplyLeaveAsync(ApplyLeaveRequest request, Guid userExternalId, int tenantId)
@@ -80,10 +82,22 @@ public class LeaveService(
                 context.LeaveApprovalSteps.Add(step);
             }
 
+            var firstStep = chainSteps.OrderBy(s => s.StepOrder).FirstOrDefault();
+            if (firstStep != null && !firstStep.ApproverId.HasValue && firstStep.RoleId.HasValue)
+            {
+                await approvalService.ResolveApproverForRoleStepAsync(firstStep, userExternalId, tenantId);
+            }
+
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            var firstStep = chainSteps.FirstOrDefault(s => s.Status == ApprovalStatus.Pending);
+            if (firstStep?.Status == ApprovalStatus.Approved)
+            {
+                await approvalService.ProcessApprovalAsync(new ProcessApprovalRequest(firstStep.ExternalId, true, "System: Auto-approved at creation"), userExternalId);
+                return leaveRequest.ExternalId;
+            }
+
+            firstStep = chainSteps.FirstOrDefault(s => s.Status == ApprovalStatus.Pending);
             if (firstStep != null)
             {
                 var tenantDomain = await context.Tenants
@@ -109,9 +123,9 @@ public class LeaveService(
                 }
                 else if (firstStep.RoleId.HasValue)
                 {
-                    var approverExternalIds = await context.UserRoles
-                        .Where(ur => ur.RoleId == firstStep.RoleId.Value)
-                        .Select(ur => ur.User.ExternalId)
+                    var approverExternalIds = await context.Users
+                        .Where(u => u.RoleId == firstStep.RoleId.Value && u.TenantId == tenantId && u.Status == UserStatus.Activated)
+                        .Select(u => u.ExternalId)
                         .ToListAsync();
 
                     foreach (var approverExtId in approverExternalIds)

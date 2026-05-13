@@ -16,12 +16,20 @@ public class ManagerContextStrategy(IAppDbContext context) : IPermissionStrategy
         var p = contextData.Permissions;
 
         var hasReportees = await context.Users.AnyAsync(u => u.ManagerId == user.Id && u.Status == UserStatus.Activated);
+        var isAssignedApprover = await context.LeaveApprovalSteps.AnyAsync(a => a.ApproverId == user.Id);
+        var isRoleApprover = await context.LeaveApprovalSteps.AnyAsync(s => s.RoleId == user.RoleId && s.ApproverId == user.Id && s.Status == ApprovalStatus.Pending);
+
+        Console.WriteLine($"[PERM_RESOLVE] User: {user.FirstName} {user.LastName} (ID: {user.Id}, RoleId: {user.RoleId}) | HasReportees: {hasReportees} | IsAssigned: {isAssignedApprover} | IsRoleApprover: {isRoleApprover}");
+
         if (hasReportees)
         {
             EnsureModule(p, "TEAM", [ActionType.VIEW], ScopeType.TEAM);
+        }
 
+        if (hasReportees || isAssignedApprover || isRoleApprover)
+        {
             EnsureModule(p, "APPROVALS", 
-                [ActionType.VIEW, ActionType.CREATE, ActionType.UPDATE, ActionType.DELETE], 
+                [ActionType.VIEW, ActionType.CREATE, ActionType.UPDATE, ActionType.DELETE, ActionType.APPROVE, ActionType.REJECT], 
                 ScopeType.TEAM);
         }
     }

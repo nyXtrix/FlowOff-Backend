@@ -9,8 +9,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace LMS.API.Controllers.Organization;
 
 [ApiController]
-[Route("api/v1/organization/[controller]")]
-[Authorize]
+[Route("api/v1/organization/invitation")]
 [EnableRateLimiting("fixed")]
 public class InvitationController(IInvitationService invitationService, IAppDbContext context) : BaseController(context)
 {

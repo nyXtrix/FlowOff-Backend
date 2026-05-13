@@ -4,13 +4,14 @@ using LMS.Application.Common.Modals;
 using LMS.Application.Features.Leaves.DTOs.Manager;
 using LMS.Application.Features.Leaves.Interfaces;
 using LMS.Application.Features.Notifications.Interfaces;
+using LMS.Domain.Entities.Auth;
 using LMS.Domain.Entities.Workflow;
 using LMS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace LMS.Application.Features.Leaves.Services;
 
-public class ApprovalService(IAppDbContext context, INotificationService notificationService) : IApprovalService
+public class ApprovalService(IAppDbContext context, INotificationService notificationService, ICacheService cache) : IApprovalService
 {
     public async Task<PaginatedResult<ApprovalListResponse>> GetApprovalsAsync(QueryRequest request, Guid userExternalId)
     {
@@ -28,6 +29,10 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
             if (int.TryParse(statusStr, out var statusInt) && Enum.IsDefined(typeof(ApprovalStatus), statusInt))
             {
                 query = query.Where(a => (int)a.Status == statusInt);
+            }
+            else if (Enum.TryParse<ApprovalStatus>(statusStr, true, out var status))
+            {
+                query = query.Where(a => a.Status == status);
             }
         }
         else
@@ -132,17 +137,45 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
                 {
                     var approverExtId = await context.Users.Where(u => u.Id == nextStep.ApproverId.Value).Select(u => u.ExternalId).FirstOrDefaultAsync();
                     if (approverExtId != Guid.Empty)
+                    {
                         await notificationService.SendNotificationAsync(approverExtId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                    }
                 }
                 else if (nextStep.RoleId.HasValue)
                 {
-                    var approverExtIds = await context.UserRoles.Where(ur => ur.RoleId == nextStep.RoleId.Value).Select(ur => ur.User.ExternalId).ToListAsync();
-                    foreach (var extId in approverExtIds)
-                        await notificationService.SendNotificationAsync(extId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                    await ResolveApproverForRoleStepAsync(nextStep, applicant.ExternalId, tenantId);
+
+                    if (nextStep.Status == ApprovalStatus.Approved)
+                    {
+                        await ProcessApprovalAsync(new ProcessApprovalRequest(nextStep.ExternalId, true, "Auto-approved via fallback logic"), userExternalId);
+                        return;
+                    }
+
+                    if (nextStep.ApproverId.HasValue)
+                    {
+                        var approverExtId = await context.Users.Where(u => u.Id == nextStep.ApproverId.Value).Select(u => u.ExternalId).FirstOrDefaultAsync();
+                        if (approverExtId != Guid.Empty)
+                        {
+                            await notificationService.SendNotificationAsync(approverExtId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                        }
+                    }
+                    else if (nextStep.RoleId.HasValue)
+                    {
+                        var approverExtIds = await context.Users
+                            .Where(u => u.RoleId == nextStep.RoleId.Value && u.TenantId == tenantId && u.Status == UserStatus.Activated)
+                            .Select(u => u.ExternalId)
+                            .ToListAsync();
+
+                        foreach (var extId in approverExtIds)
+                        {
+                            await notificationService.SendNotificationAsync(extId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                        }
+                    }
                 }
             }
         }
 
+        Console.WriteLine($"[APPROVAL_PROCESS] Step {currentStep.ExternalId} processed. Status: {currentStep.Status}. LeaveRequest Status: {currentStep.LeaveRequest.Status}");
         await context.SaveChangesAsync();
     }
 
@@ -212,7 +245,7 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
         var pendingCount = await baseQuery.CountAsync(a => a.Status == ApprovalStatus.Pending);
         
         var today = DateTime.UtcNow.Date;
-        var todayRequests = await baseQuery.CountAsync(a => a.Status == ApprovalStatus.Pending && a.LeaveRequest.CreatedAt >= today);
+        var todayRequests = await baseQuery.CountAsync(a => a.LeaveRequest.CreatedAt >= today);
 
         var resolvedRequests = await baseQuery
             .Where(a => a.Status != ApprovalStatus.Waiting && a.ActionDate.HasValue)
@@ -259,5 +292,83 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
         };
 
         return new ApprovalStatsResponse(stats);
+    }
+
+    public async Task ResolveApproverForRoleStepAsync(LeaveApprovalStep step, Guid applicantExternalId, int tenantId)
+    {
+        if (step.ApproverId.HasValue || !step.RoleId.HasValue) return;
+
+        var applicant = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == applicantExternalId);
+        if (applicant == null) return;
+
+        var leaveRequest = step.LeaveRequest ?? await context.LeaveRequests.FirstOrDefaultAsync(lr => lr.Id == step.LeaveRequestId);
+        if (leaveRequest == null) return;
+
+        var usersInRole = await context.Users
+            .Where(u => u.RoleId == step.RoleId.Value && u.TenantId == tenantId && u.Status == UserStatus.Activated)
+            .ToListAsync();
+
+        if (!usersInRole.Any()) return;
+
+        var deptUsers = usersInRole.Where(u => u.DepartmentId == applicant.DepartmentId).ToList();
+        
+        async Task<int?> FindAvailableUserAsync(List<User> candidates)
+        {
+            foreach (var candidate in candidates)
+            {
+                var isBusy = await context.LeaveRequests.AnyAsync(lr => 
+                    lr.UserId == candidate.Id && 
+                    lr.Status == LeaveStatus.Approved &&
+                    leaveRequest.StartDate <= lr.EndDate && 
+                    leaveRequest.EndDate >= lr.StartDate);
+                
+                if (!isBusy) 
+                {
+                    return candidate.Id;
+                }
+            }
+            return null;
+        }
+
+        var approverId = await FindAvailableUserAsync(deptUsers);
+        
+        if (approverId == null)
+        {
+            approverId = await FindAvailableUserAsync(usersInRole);
+        }
+
+        if (approverId != null)
+        {
+            step.ApproverId = approverId;
+            
+            var assignedUser = await context.Users.FindAsync(approverId);
+            if (assignedUser != null)
+            {
+                await cache.RemoveAsync($"upr_{assignedUser.ExternalId}");
+            }
+        }
+        else
+        {
+            var superAdmin = await context.Users
+                .Include(u => u.Role)
+                .Where(u => (u.Role.Name == "Super Admin" || u.Role.Name == "Admin") && u.TenantId == tenantId && u.Status == UserStatus.Activated)
+                .OrderBy(u => u.RoleId)
+                .FirstOrDefaultAsync();
+
+            if (superAdmin != null)
+            {
+                if (applicant.ManagerId == superAdmin.Id)
+                {
+                    step.Status = ApprovalStatus.Approved;
+                    step.ApproverId = superAdmin.Id;
+                    step.ActionDate = DateTime.UtcNow;
+                    step.Comments = "System: Auto-approved (Manager is Super Admin and no other role-based approvers available).";
+                }
+                else
+                {
+                    step.ApproverId = superAdmin.Id;
+                }
+            }
+        }
     }
 }

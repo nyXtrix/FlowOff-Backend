@@ -121,7 +121,7 @@ public class AuthenticationService(
             user.CreatedAt
         );
 
-        await _cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(10));
+        await _cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(1));
         return response;
     }
 

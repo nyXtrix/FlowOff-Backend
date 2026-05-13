@@ -15,7 +15,10 @@ public class PolicyResolver(IAppDbContext context) : IPolicyResolver
 
     public async Task<LeaveUsagePolicy> ResolveUsagePolicyAsync(Guid userExternalId, int tenantId)
     {
-        var user = await context.Users.GetUserByExternalIdAsync(userExternalId);
+        var user = await context.Users
+            .Include(u => u.Department)
+            .Include(u => u.Role)
+            .GetUserByExternalIdAsync(userExternalId);
 
         var scopes = await context.PolicyScopes.Where(s => s.TenantId == tenantId && s.IsActive && s.UsagePolicyId != null).OrderByDescending(s => s.Priority).ToListAsync();
 
@@ -29,7 +32,11 @@ public class PolicyResolver(IAppDbContext context) : IPolicyResolver
 
     public async Task<WeekOffPolicy> ResolveWeekOffPolicyAsync(Guid userExternalId, int tenantId)
     {
-        var user = await context.Users.GetUserByExternalIdAsync(userExternalId);
+        var user = await context.Users
+            .Include(u => u.Department)
+            .Include(u => u.Role)
+            .GetUserByExternalIdAsync(userExternalId);
+
         var scopes = await context.PolicyScopes.Where(s => s.TenantId == tenantId && s.IsActive && s.WeekOffPolicyId != null).OrderByDescending(s => s.Priority).ToListAsync();
 
         foreach (var scope in scopes)
@@ -42,7 +49,11 @@ public class PolicyResolver(IAppDbContext context) : IPolicyResolver
 
     public async Task<BalancePolicy> ResolveBalancePolicyAsync(Guid userExternalId, int leaveTypeId, int tenantId)
     {
-        var user = await context.Users.GetUserByExternalIdAsync(userExternalId);
+        var user = await context.Users
+            .Include(u => u.Department)
+            .Include(u => u.Role)
+            .GetUserByExternalIdAsync(userExternalId);
+
         var scopes = await context.PolicyScopes.Where(s => s.TenantId == tenantId && s.IsActive && s.BalancePolicyId != null).OrderByDescending(s => s.Priority).ToListAsync();
 
         foreach (var scope in scopes)
@@ -66,8 +77,8 @@ public class PolicyResolver(IAppDbContext context) : IPolicyResolver
         return scope.ScopeType switch
         {
             PolicyScope.Employee => scope.ScopeValue == user.ExternalId.ToString(),
-            PolicyScope.Department => scope.ScopeValue == user.DepartmentId?.ToString(),
-            PolicyScope.Role => scope.ScopeValue == user.RoleId.ToString(),
+            PolicyScope.Department => scope.ScopeValue == user.Department?.ExternalId.ToString(),
+            PolicyScope.Role => scope.ScopeValue == user.Role?.ExternalId.ToString(),
             PolicyScope.Org => true,
             _ => false
         };

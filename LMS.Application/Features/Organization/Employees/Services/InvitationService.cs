@@ -132,7 +132,14 @@ public class InvitationService(
         var invite = await context.UserInvites
             .Include(i => i.User)
             .ThenInclude(u => u.Tenant)
-            .FirstOrDefaultAsync(i => i.Token == token && !i.IsUsed && i.ExpiryDate > DateTime.UtcNow) ?? throw new Exception("Invalid or expired invite token.");
+            .FirstOrDefaultAsync(i => i.Token == token) 
+            ?? throw new AppException(404, "Invitation not found.", "INVITATION_NOT_FOUND");
+
+        if (invite.IsUsed)
+            throw new AppException(400, "This invitation has already been used.", "INVITATION_ALREADY_USED");
+
+        if (invite.ExpiryDate < DateTime.UtcNow)
+            throw new AppException(400, "This invitation link has expired.", "INVITATION_EXPIRED");
 
         return new InviteDetailsResponse(
             invite.User.Tenant.Name,

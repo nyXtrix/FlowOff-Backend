@@ -36,6 +36,9 @@ public class PolicyService(IAppDbContext context) : IPolicyService
                 if (weekOffIds.Any()) context.WeekOffPolicies.RemoveRange(context.WeekOffPolicies.Where(p => weekOffIds.Contains(p.Id)));
                 if (balanceIds.Any()) context.BalancePolicies.RemoveRange(context.BalancePolicies.Where(p => balanceIds.Contains(p.Id)));
                 
+                var existingRules = await context.ApprovalRules.Where(r => r.TenantId == tenantId).ToListAsync();
+                if (existingRules.Any()) context.ApprovalRules.RemoveRange(existingRules);
+
                 context.PolicyScopes.RemoveRange(existingScopes);
                 await context.SaveChangesAsync();
             }
@@ -68,22 +71,32 @@ public class PolicyService(IAppDbContext context) : IPolicyService
 
             foreach (var ruleReq in request.ApprovalRules)
             {
+                if (!Enum.TryParse<WorkflowApprovalMode>(ruleReq.ApprovalMode, true, out var mode))
+                {
+                    mode = WorkflowApprovalMode.Sequential;
+                }
+
                 var approvalRule = new ApprovalRule
                 {
                     TenantId = tenantId,
                     Name = ruleReq.Name,
                     Priority = ruleReq.Priority,
-                    Mode = Enum.Parse<WorkflowApprovalMode>(ruleReq.ApprovalMode, true),
+                    Mode = mode,
                     ConditionJson = JsonSerializer.Serialize(ruleReq.Conditions),
                     IsActive = true
                 };
 
                 foreach (var stepReq in ruleReq.Steps)
                 {
+                    if (!Enum.TryParse<ApproverType>(stepReq.ApproverType, true, out var stepType))
+                    {
+                        stepType = ApproverType.Manager;
+                    }
+
                     approvalRule.Steps.Add(new ApprovalStep
                     {
                         Sequence = stepReq.Order,
-                        ApproverType = Enum.Parse<ApproverType>(stepReq.ApproverType, true),
+                        ApproverType = stepType,
                         ApproverValue = stepReq.RoleId ?? ""
                     });
                 }
@@ -107,7 +120,7 @@ public class PolicyService(IAppDbContext context) : IPolicyService
                         MaxCarryForwardLimit = balanceReq.MaxCarryForward,
                         AllowNegativeBalance = balanceReq.AllowNegativeBalance,
                         MaxNegativeLimit = balanceReq.MaxNegativeLimit,
-                        RoundingRule = Enum.Parse<RoundingRule>(balanceReq.RoundingRule, true)
+                        RoundingRule = Enum.TryParse<RoundingRule>(balanceReq.RoundingRule, true, out var rr) ? rr : RoundingRule.None
                     };
                     context.BalancePolicies.Add(balancePolicy);
                     await context.SaveChangesAsync();
@@ -213,7 +226,7 @@ public class PolicyService(IAppDbContext context) : IPolicyService
 
         var approvals = await context.ApprovalRules
             .Include(r => r.Steps)
-            .Where(r => r.TenantId == tenantId)
+            .Where(r => r.TenantId == tenantId && r.IsActive)
             .Select(r => new ApprovalRuleRequest(
                 r.Name,
                 r.Priority,
