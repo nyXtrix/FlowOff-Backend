@@ -14,3 +14,13 @@ public record EmployeeListResponse(
     UserStatus Status,
     DateTime CreatedAt
 );
+
+public class UpdateEmployeeRequest
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public int Gender { get; set; }
+    public string? DepartmentId { get; set; }
+    public string? ManagerId { get; set; }
+    public string? RoleId { get; set; }
+}

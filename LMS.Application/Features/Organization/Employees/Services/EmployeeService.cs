@@ -262,4 +262,80 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
             LeaveHistory = leaveHistory
         };
     }
+
+    public async Task UpdateEmployeeProfileAsync(Guid employeeExternalId, UpdateEmployeeRequest request, Guid userExternalId, int tenantId)
+    {
+        var currentUser = await context.Users
+            .Include(u => u.Role)
+                .ThenInclude(r => r.RolePermissions)
+                    .ThenInclude(rp => rp.Permissions)
+            .FirstOrDefaultAsync(u => u.ExternalId == userExternalId && u.TenantId == tenantId)
+            ?? throw new AppException(404, "User context not found", "NOT_FOUND");
+
+        var user = await context.Users
+            .FirstOrDefaultAsync(u => u.ExternalId == employeeExternalId && u.TenantId == tenantId)
+            ?? throw new AppException(404, "Employee not found", "NOT_FOUND");
+
+        var permissions = await permissionResolver.ResolveForUserAsync(currentUser);
+        bool canUpdate = false;
+        bool isFullAdmin = false;
+
+        if (permissions.TryGetValue("EMPLOYEE_MGMT", out var empMgmt))
+        {
+            if (empMgmt.Actions.Contains(ActionType.UPDATE))
+            {
+                if (empMgmt.Scope == ScopeType.ALL) { canUpdate = true; isFullAdmin = true; }
+                else if (empMgmt.Scope == ScopeType.DEPARTMENT && user.DepartmentId == currentUser.DepartmentId) { canUpdate = true; isFullAdmin = true; }
+                else if (empMgmt.Scope == ScopeType.TEAM && user.ManagerId == currentUser.Id) { canUpdate = true; isFullAdmin = true; }
+                else if (empMgmt.Scope == ScopeType.SELF && user.Id == currentUser.Id) { canUpdate = true; }
+            }
+        }
+
+        if (!canUpdate)
+        {
+            throw new AppException(403, "You do not have permission to update this employee's profile", "FORBIDDEN");
+        }
+
+        user.FirstName = request.FirstName;
+        user.LastName = request.LastName;
+        if (Enum.IsDefined(typeof(GenderEnum), request.Gender))
+        {
+            user.Gender = (GenderEnum)request.Gender;
+        }
+
+        if (isFullAdmin)
+        {
+            if (!string.IsNullOrWhiteSpace(request.DepartmentId) && Guid.TryParse(request.DepartmentId, out var deptExtId))
+            {
+                var dept = await context.Departments.FirstOrDefaultAsync(d => d.ExternalId == deptExtId && d.TenantId == tenantId);
+                user.DepartmentId = dept?.Id;
+            }
+            else if (string.IsNullOrWhiteSpace(request.DepartmentId))
+            {
+                user.DepartmentId = null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ManagerId) && Guid.TryParse(request.ManagerId, out var managerExtId))
+            {
+                var manager = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == managerExtId && u.TenantId == tenantId);
+                user.ManagerId = manager?.Id;
+            }
+            else if (string.IsNullOrWhiteSpace(request.ManagerId))
+            {
+                user.ManagerId = null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.RoleId) && Guid.TryParse(request.RoleId, out var roleExtId))
+            {
+                var role = await context.Roles.FirstOrDefaultAsync(r => r.ExternalId == roleExtId && (r.TenantId == tenantId || r.TenantId == null));
+                if (role != null)
+                {
+                    user.RoleId = role.Id;
+                }
+            }
+        }
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+    }
 }

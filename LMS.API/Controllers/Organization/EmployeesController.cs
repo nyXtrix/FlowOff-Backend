@@ -3,6 +3,7 @@ using LMS.API.Filters;
 using LMS.Application.Common.DTOs;
 using LMS.Application.Common.Interfaces;
 using LMS.Application.Features.Auth.Services;
+using LMS.Application.Features.Employees.DTOs;
 using LMS.Application.Features.Employees.Interfaces;
 using LMS.Domain.Enums.Authorization;
 using Microsoft.AspNetCore.Authorization;
@@ -59,5 +60,16 @@ public class EmployeesController(IEmployeeService employeeService, IAppDbContext
         var result = await employeeService.GetEmployeeProfileAsync(externalId, userExternalId, tenantId);
 
         return Ok(result);
+    }
+
+    [HttpPut("profile/{externalId}")]
+    public async Task<IActionResult> UpdateProfile(Guid externalId, [FromBody] UpdateEmployeeRequest request)
+    {
+        var tenantId = await GetTenantIdAsync();
+        var userExternalId = GetUserExternalId();
+
+        await employeeService.UpdateEmployeeProfileAsync(externalId, request, userExternalId, tenantId);
+
+        return Ok(new { message = "Profile updated successfully" });
     }
 }

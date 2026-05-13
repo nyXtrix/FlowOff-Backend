@@ -10,4 +10,5 @@ public interface IEmployeeService
     Task<PaginatedResult<EmployeeListResponse>> GetEmployeesAsync(QueryRequest request, Guid userExternalId, int tenantId);
     Task<List<EmployeeListResponse>> GetRecentInvitesAsync(int tenantId);
     Task<EmployeeProfileResponse> GetEmployeeProfileAsync(Guid employeeExternalId, Guid userExternalId, int tenantId);
+    Task UpdateEmployeeProfileAsync(Guid employeeExternalId, UpdateEmployeeRequest request, Guid userExternalId, int tenantId);
 }

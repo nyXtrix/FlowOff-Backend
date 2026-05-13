@@ -155,7 +155,7 @@ public class DashboardService(IAppDbContext context) : IDashboardService
         var currentYear = DateTime.UtcNow.Year;
 
         var totalEmployees = await context.Users
-            .Where(u => u.TenantId == tenantId && u.Status == UserStatus.Activated)
+            .Where(u => u.TenantId == tenantId && u.Status == UserStatus.Activated && u.Role.Code != "SUPER_ADMIN")
             .CountAsync();
 
         var departmentCount = await context.Departments
