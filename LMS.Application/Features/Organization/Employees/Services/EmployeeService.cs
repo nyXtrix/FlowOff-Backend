@@ -105,7 +105,7 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
                                     u.Email,
                                     u.Department != null ? u.Department.Name : "N/A",
                                     u.Role.Name,
-                                    u.Status,
+                                    (int)u.Status,
                                     u.CreatedAt
                                )).ToListAsync();
 
@@ -128,7 +128,7 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
                 u.Email,
                 u.Department != null ? u.Department.Name : "N/A",
                 u.Role.Name,
-                u.Status,
+                (int)u.Status,
                 u.CreatedAt
             )).ToListAsync();
     }

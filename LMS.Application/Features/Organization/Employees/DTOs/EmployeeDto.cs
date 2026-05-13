@@ -11,7 +11,7 @@ public record EmployeeListResponse(
     string Email,
     string DepartmentName,
     string RoleName,
-    UserStatus Status,
+    int Status,
     DateTime CreatedAt
 );
 

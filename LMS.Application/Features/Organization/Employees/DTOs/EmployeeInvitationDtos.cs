@@ -11,7 +11,7 @@ public record SetPasswordRequest(string Token, string Password, string ConfirmPa
 public record InviteDetailsResponse(string CompanyName, string Subdomain, string Id, string FirstName, string LastName, string Email);
 public record ForgotPasswordRequest(string Email);
 public record ResetPasswordRequest(string Token, string Password, string ConfirmPassword);
-public record BulkUserInvitedStatus(int TotalRows, int ProcessedRows, int SuccessCount, int FailureCount, BulkInvitedUserStatus Status, Guid ExternalId, string? ErrorMessage = null);
+public record BulkUserInvitedStatus(int TotalRows, int ProcessedRows, int SuccessCount, int FailureCount, int Status, Guid ExternalId, string? ErrorMessage = null);
 
 public record BulkUserInviteDto
 {
@@ -20,7 +20,7 @@ public record BulkUserInviteDto
     public int TotalRows { get; set; }
     public int SuccessCount { get; set; }
     public int FailureCount { get; set; }
-    public BulkInvitedUserStatus Status { get; set; }
+    public int Status { get; set; }
     public string? ErrorMessage { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -29,7 +29,7 @@ public record BulkUserInviteDetailsDto
 {
     public Guid ExternalId { get; set; }
     public string FileName { get; set; } = null!;
-    public BulkInvitedUserStatus Status { get; set; }
+    public int Status { get; set; }
     public int TotalRows { get; set; }
     public int SuccessCount { get; set; }
     public int FailureCount { get; set; }
@@ -39,6 +39,6 @@ public record BulkUserInviteDetailsDto
 public record BulkRowResultDto
 {
     public string Email { get; set; } = null!;
-    public BulkRowStatus Status { get; set; }
+    public int Status { get; set; }
     public string? ErrorMessage { get; set; }
 }

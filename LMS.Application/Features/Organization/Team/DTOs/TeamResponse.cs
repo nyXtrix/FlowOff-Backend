@@ -18,7 +18,7 @@ public record TeamMemberResponse(
     string Email,
     string DepartmentName,
     string RoleName,
-    string Status,
+    int Status,
     DateTime JoinedDate,
     bool OnLeaveToday,
     string? LeaveType,

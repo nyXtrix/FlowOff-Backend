@@ -141,7 +141,7 @@ public class BulkUserInviteService(IAppDbContext context, IStorageService storag
             bulkUserInvite.ProcessedRows,
             bulkUserInvite.SuccessCount,
             bulkUserInvite.FailureCount,
-            bulkUserInvite.Status,
+            (int)bulkUserInvite.Status,
             bulkUserInvite.ExternalId,
             bulkUserInvite.ErrorMessage
         );
@@ -224,7 +224,7 @@ public class BulkUserInviteService(IAppDbContext context, IStorageService storag
             var migrateSql = $@"
                 INSERT INTO ""Users"" (""TenantId"", ""FirstName"", ""LastName"", ""Email"", ""Status"", ""RoleId"", ""DepartmentId"", ""UnresolvedManagerEmail"", ""BulkUserInvitedId"", ""ExternalId"", ""CreatedAt"", ""UpdatedAt"", ""Gender"")
                 SELECT 
-                    {tenantId}, t.first_name, t.last_name, t.email, 0, r.""Id"", d.""Id"", t.manager_email, {bulkInviteId}, gen_random_uuid(), NOW(), NOW(),
+                    {tenantId}, t.first_name, t.last_name, t.email, 1, r.""Id"", d.""Id"", t.manager_email, {bulkInviteId}, gen_random_uuid(), NOW(), NOW(),
                     CASE WHEN LOWER(t.gender) = 'male' THEN 1 WHEN LOWER(t.gender) = 'female' THEN 2 WHEN LOWER(t.gender) IN ('other','others') THEN 3 ELSE 0 END
                 FROM temp_user_import t 
                 JOIN ""Roles"" r ON LOWER(r.""Name"") = LOWER(t.role_name) AND r.""TenantId"" = {tenantId}
@@ -319,7 +319,7 @@ public class BulkUserInviteService(IAppDbContext context, IStorageService storag
                 TotalRows = x.TotalRows,
                 SuccessCount = x.SuccessCount,
                 FailureCount = x.FailureCount,
-                Status = x.Status,
+                Status = (int)x.Status,
                 ErrorMessage = x.ErrorMessage,
                 CreatedAt = x.CreatedAt
             })
@@ -338,7 +338,7 @@ public class BulkUserInviteService(IAppDbContext context, IStorageService storag
             .Select(x => new BulkRowResultDto
             {
                 Email = x.Email,
-                Status = x.Status,
+                Status = (int)x.Status,
                 ErrorMessage = x.ErrorMessage
             })
             .ToListAsync();
@@ -347,7 +347,7 @@ public class BulkUserInviteService(IAppDbContext context, IStorageService storag
         {
             ExternalId = invite.ExternalId,
             FileName = invite.FileName,
-            Status = invite.Status,
+            Status = (int)invite.Status,
             TotalRows = invite.TotalRows,
             SuccessCount = invite.SuccessCount,
             FailureCount = invite.FailureCount,

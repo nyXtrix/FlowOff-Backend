@@ -86,6 +86,7 @@ public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory) : Backgroun
                             catch (Exception ex)
                             {
                                 Console.WriteLine($"[BULK_INVITE_ERROR] {user.Email}: {ex.Message}");
+                                user.Status = UserStatus.InActive;
                             }
                         }
 

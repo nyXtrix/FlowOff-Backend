@@ -82,7 +82,7 @@ public class TeamServices(IAppDbContext context, IPermissionResolver permissionR
                  u.Email,
                  u.Department?.Name ?? "N/A",
                  u.Role?.Name ?? "N/A",
-                 u.Status.ToString(),
+                 (int)u.Status,
                  u.CreatedAt,
                  activeLeave != null,
                  activeLeave?.LeaveType?.Name,
