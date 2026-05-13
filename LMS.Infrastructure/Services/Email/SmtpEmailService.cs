@@ -28,12 +28,14 @@ public class SmtpEmailService(IConfiguration configuration, ILogger<SmtpEmailSer
         email.Body = new TextPart("html") { Text = body };
 
         using var smtp = new SmtpClient();
-        smtp.Timeout = 20000; // Increased to 20s
+        smtp.Timeout = 20000;
 
         try
         {
-            logger.LogDebug("Connecting to SMTP server...");
-            await smtp.ConnectAsync(_smtpHost, _smtpPort, SecureSocketOptions.Auto);
+            var options = _smtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
+            logger.LogDebug("Connecting to SMTP server {Host}:{Port} with {Options}...", _smtpHost, _smtpPort, options);
+            
+            await smtp.ConnectAsync(_smtpHost, _smtpPort, options);
             
             logger.LogDebug("Authenticating...");
             await smtp.AuthenticateAsync(_smtpUser, _smtpPass);
