@@ -6,5 +6,5 @@ public enum BulkInvitedUserStatus
     Processing,
     Completed,
     Failed,
-    PartialyFailed
+    PartiallyFailed
 }

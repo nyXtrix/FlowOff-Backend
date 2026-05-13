@@ -44,14 +44,22 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
             .Where(u => u.TenantId == currentUser.TenantId && u.Role.Code != "SUPER_ADMIN")
             .AsQueryable();
 
-        var empMgmtPermission = currentUser.Role.RolePermissions.FirstOrDefault(rp => rp.Permissions.Name.StartsWith("EMPLOYEE_MGMT")) 
-            ?? throw new AppException(403, "User does not have permission to get employees", "PERMISSION_DENIED");
+        var permissions = await permissionResolver.ResolveForUserAsync(currentUser);
         
-        var scope = empMgmtPermission.Scope;
+        if (!permissions.TryGetValue("EMPLOYEE_MGMT", out var empMgmt) || !empMgmt.Actions.Contains(ActionType.VIEW))
+        {
+            throw new AppException(403, "User does not have permission to get employees", "PERMISSION_DENIED");
+        }
+        
+        var scope = empMgmt.Scope;
 
         if (scope == ScopeType.DEPARTMENT)
         {
             query = query.Where(u => u.DepartmentId == currentUser.DepartmentId);
+        }
+        else if (scope == ScopeType.TEAM)
+        {
+            query = query.Where(u => u.ManagerId == currentUser.Id);
         }
         else if (scope == ScopeType.SELF)
         {

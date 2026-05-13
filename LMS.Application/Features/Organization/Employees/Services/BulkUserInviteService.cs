@@ -11,7 +11,7 @@ using LMS.Application.Features.Organization.Employees.DTOs;
 
 namespace LMS.Application.Features.Organization.Employees.Services;
 
-public class BulkUserInviteService(IAppDbContext context)
+public class BulkUserInviteService(IAppDbContext context, IStorageService storageService)
 {
     public async Task<Guid> UploadFromFileAsync(Stream fileStream, string fileName, int tenantId)
     {
@@ -26,20 +26,12 @@ public class BulkUserInviteService(IAppDbContext context)
             CreatedAt = DateTime.UtcNow
         };
 
-        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "bulk-invites");
-        if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
-
-        var filePath = Path.Combine(uploadsDir, $"{bulkInvite.ExternalId}{Path.GetExtension(fileName)}");
-        using (var fs = new FileStream(filePath, FileMode.Create))
-        {
-            await fileStream.CopyToAsync(fs);
-        }
-
-        bulkInvite.FilePath = filePath;
+        var fileIdentifier = await storageService.UploadFileAsync(fileStream, fileName, "bulk-invites");
+        bulkInvite.FilePath = fileIdentifier;
         
         try 
         {
-            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var stream = await storageService.DownloadFileAsync(fileIdentifier))
             using (var reader = FileReader(stream, fileName))
             {
                 int count = 0;
@@ -74,7 +66,7 @@ public class BulkUserInviteService(IAppDbContext context)
             bulkInvite.Status = BulkInvitedUserStatus.Processing;
             await context.SaveChangesAsync();
 
-            using (var fileStream = new FileStream(bulkInvite.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var fileStream = await storageService.DownloadFileAsync(bulkInvite.FilePath))
             using (var reader = FileReader(fileStream, bulkInvite.FileName))
             {
                 var dbConnection = RelationalDatabaseFacadeExtensions.GetDbConnection(context.Database);
@@ -115,9 +107,17 @@ public class BulkUserInviteService(IAppDbContext context)
                 }
             }
 
-            bulkInvite.Status = BulkInvitedUserStatus.Completed;
-            
-            if (File.Exists(bulkInvite.FilePath)) File.Delete(bulkInvite.FilePath);
+            await storageService.DeleteFileAsync(bulkInvite.FilePath);
+
+            if (bulkInvite.Status == BulkInvitedUserStatus.Processing)
+            {
+                if (bulkInvite.FailureCount > 0 && bulkInvite.SuccessCount > 0) 
+                    bulkInvite.Status = BulkInvitedUserStatus.PartiallyFailed;
+                else if (bulkInvite.FailureCount > 0 && bulkInvite.SuccessCount == 0)
+                    bulkInvite.Status = BulkInvitedUserStatus.Failed;
+                else
+                    bulkInvite.Status = BulkInvitedUserStatus.Completed;
+            }
         }
         catch (Exception ex)
         {
@@ -142,7 +142,8 @@ public class BulkUserInviteService(IAppDbContext context)
             bulkUserInvite.SuccessCount,
             bulkUserInvite.FailureCount,
             bulkUserInvite.Status,
-            bulkUserInvite.ExternalId
+            bulkUserInvite.ExternalId,
+            bulkUserInvite.ErrorMessage
         );
     }
 
@@ -319,6 +320,7 @@ public class BulkUserInviteService(IAppDbContext context)
                 SuccessCount = x.SuccessCount,
                 FailureCount = x.FailureCount,
                 Status = x.Status,
+                ErrorMessage = x.ErrorMessage,
                 CreatedAt = x.CreatedAt
             })
             .ToListAsync();

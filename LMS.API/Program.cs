@@ -38,6 +38,7 @@ using LMS.Application.Features.Calendar.Interfaces;
 using LMS.Application.Features.Calendar.Services;
 using LMS.Application.Features.Dashboard.Interfaces;
 using LMS.Application.Features.Dashboard.Services;
+using LMS.Infrastructure.Services.Storage;
 
 
 
@@ -163,6 +164,15 @@ builder.Services.AddHostedService<NotificationHeartbeatWorker>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ILmsAuthorizationService, LMS.Application.Features.Auth.Services.Authorization.AuthorizationService>();
+builder.Services.AddScoped<IStorageService>(sp => {
+    var config = sp.GetRequiredService<IConfiguration>();
+    var provider = config["Storage:Provider"];
+    if (provider == "GoogleDrive")
+    {
+        return new GoogleDriveStorageService(config);
+    }
+    return new LocalStorageService(sp.GetRequiredService<IWebHostEnvironment>());
+});
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "a_very_long_secret_key_that_is_at_least_32_chars_long";
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

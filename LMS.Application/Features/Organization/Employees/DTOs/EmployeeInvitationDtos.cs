@@ -11,7 +11,7 @@ public record SetPasswordRequest(string Token, string Password, string ConfirmPa
 public record InviteDetailsResponse(string CompanyName, string Subdomain, string Id, string FirstName, string LastName, string Email);
 public record ForgotPasswordRequest(string Email);
 public record ResetPasswordRequest(string Token, string Password, string ConfirmPassword);
-public record BulkUserInvitedStatus(int TotalRows, int ProcessedRows, int SuccessCount, int FailureCount, BulkInvitedUserStatus Status, Guid ExternalId);
+public record BulkUserInvitedStatus(int TotalRows, int ProcessedRows, int SuccessCount, int FailureCount, BulkInvitedUserStatus Status, Guid ExternalId, string? ErrorMessage = null);
 
 public record BulkUserInviteDto
 {
@@ -21,6 +21,7 @@ public record BulkUserInviteDto
     public int SuccessCount { get; set; }
     public int FailureCount { get; set; }
     public BulkInvitedUserStatus Status { get; set; }
+    public string? ErrorMessage { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
