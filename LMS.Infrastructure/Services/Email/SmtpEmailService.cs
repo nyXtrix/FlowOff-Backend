@@ -34,9 +34,16 @@ public class SmtpEmailService(IConfiguration configuration, ILogger<SmtpEmailSer
         try
         {
             var options = _smtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
-            logger.LogDebug("Connecting to SMTP server {Host}:{Port} with {Options}...", _smtpHost, _smtpPort, options);
             
-            await smtp.ConnectAsync(_smtpHost, _smtpPort, options);
+            logger.LogDebug("Resolving IPv4 addresses for {Host}...", _smtpHost);
+            var addresses = await System.Net.Dns.GetHostAddressesAsync(_smtpHost);
+            var ipv4Address = addresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+            
+            if (ipv4Address == null) throw new Exception($"Could not resolve IPv4 address for {_smtpHost}");
+            
+            logger.LogInformation("Connecting to SMTP server {IP}:{Port} with {Options}...", ipv4Address, _smtpPort, options);
+            
+            await smtp.ConnectAsync(ipv4Address.ToString(), _smtpPort, options);
             
             logger.LogDebug("Authenticating...");
             await smtp.AuthenticateAsync(_smtpUser, _smtpPass);
