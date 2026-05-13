@@ -138,6 +138,23 @@
           }
         }
       },
+      "Google.Apis.Gmail.v1/1.74.0.4134": {
+        "type": "package",
+        "dependencies": {
+          "Google.Apis": "1.74.0",
+          "Google.Apis.Auth": "1.74.0"
+        },
+        "compile": {
+          "lib/net6.0/Google.Apis.Gmail.v1.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.Gmail.v1.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
       "Humanizer.Core/2.14.1": {
         "type": "package",
         "compile": {
@@ -1637,6 +1654,28 @@
         "lib/netstandard2.0/Google.Apis.Drive.v3.dll",
         "lib/netstandard2.0/Google.Apis.Drive.v3.pdb",
         "lib/netstandard2.0/Google.Apis.Drive.v3.xml"
+      ]
+    },
+    "Google.Apis.Gmail.v1/1.74.0.4134": {
+      "sha512": "Zke3h3H0OQxTzPdm8Snnfsrg2T2e6MVN6yTj1DIoAIwxcz3DQx2P2TneXGAgoUJ2gIkH30VrpuF8xHs1QGgPMg==",
+      "type": "package",
+      "path": "google.apis.gmail.v1/1.74.0.4134",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE",
+        "NuGetIcon.png",
+        "google.apis.gmail.v1.1.74.0.4134.nupkg.sha512",
+        "google.apis.gmail.v1.nuspec",
+        "lib/net462/Google.Apis.Gmail.v1.dll",
+        "lib/net462/Google.Apis.Gmail.v1.pdb",
+        "lib/net462/Google.Apis.Gmail.v1.xml",
+        "lib/net6.0/Google.Apis.Gmail.v1.dll",
+        "lib/net6.0/Google.Apis.Gmail.v1.pdb",
+        "lib/net6.0/Google.Apis.Gmail.v1.xml",
+        "lib/netstandard2.0/Google.Apis.Gmail.v1.dll",
+        "lib/netstandard2.0/Google.Apis.Gmail.v1.pdb",
+        "lib/netstandard2.0/Google.Apis.Gmail.v1.xml"
       ]
     },
     "Humanizer.Core/2.14.1": {
@@ -4070,6 +4109,7 @@
   "projectFileDependencyGroups": {
     "net9.0": [
       "Google.Apis.Drive.v3 >= 1.74.0.4135",
+      "Google.Apis.Gmail.v1 >= 1.74.0.4134",
       "LMS.Application >= 1.0.0",
       "LMS.Domain >= 1.0.0",
       "MailKit >= 4.15.1",
@@ -4133,6 +4173,10 @@
           "Google.Apis.Drive.v3": {
             "target": "Package",
             "version": "[1.74.0.4135, )"
+          },
+          "Google.Apis.Gmail.v1": {
+            "target": "Package",
+            "version": "[1.74.0.4134, )"
           },
           "MailKit": {
             "target": "Package",
