@@ -1,5 +1,6 @@
 using LMS.Application.Common.Email;
 using LMS.Application.Common.Interfaces;
+using MailKit;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
