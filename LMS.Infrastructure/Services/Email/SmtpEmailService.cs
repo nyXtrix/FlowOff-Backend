@@ -27,8 +27,8 @@ public class SmtpEmailService(IConfiguration configuration, ILogger<SmtpEmailSer
         email.Subject = subject;
         email.Body = new TextPart("html") { Text = body };
 
-        using var smtp = new SmtpClient();
-        smtp.Timeout = 20000;
+        using var smtp = new SmtpClient(new ProtocolLogger(Console.OpenStandardOutput()));
+        smtp.Timeout = 30000;
 
         try
         {
