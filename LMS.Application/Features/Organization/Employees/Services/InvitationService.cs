@@ -11,11 +11,17 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using LMS.Application.Features.Auth.Interfaces;
 
 namespace LMS.Application.Features.Organization.Employees.Services;
 
-public class InvitationService(IAppDbContext context, IConfiguration configuration, IEmailService emailService, IAuthenticationService authService) : IInvitationService
+public class InvitationService(
+    IAppDbContext context, 
+    IConfiguration configuration, 
+    IEmailService emailService, 
+    IAuthenticationService authService,
+    ILogger<InvitationService> logger) : IInvitationService
 {
     private readonly PasswordHasher<User> _passwordHasher = new PasswordHasher<User>();
     private readonly IConfiguration _configuration = configuration;
@@ -68,12 +74,21 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
         context.UserInvites.Add(invite);
         await context.SaveChangesAsync();
 
-        var inviteLink = $"{_configuration["App:FrontendUrl"]}/set-password?token={token}";
+        var baseUrl = _configuration["App:FrontendUrl"] ?? "https://flowoff.vercel.app";
+        var inviteLink = $"{baseUrl.TrimEnd('/')}/set-password?token={token}";
+
         _ = Task.Run(async () =>
         {
             var fullName = $"{user.FirstName} {user.LastName}";
-            try { await emailService.SendInviteEmailAsync(user.Email, fullName, inviteLink); }
-            catch (Exception ex) { Console.WriteLine($"[EMAIL_ERROR] Invite: {ex.Message}"); }
+            try 
+            { 
+                await emailService.SendInviteEmailAsync(user.Email, fullName, inviteLink); 
+                logger.LogInformation("Invitation email sent successfully to {Email}", user.Email);
+            }
+            catch (Exception ex) 
+            { 
+                logger.LogError(ex, "[EMAIL_ERROR] Failed to send invite email to {Email}", user.Email);
+            }
         });
 
         return token;
@@ -140,12 +155,21 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
 
         await context.SaveChangesAsync();
 
-        var resetLink = $"{_configuration["App:FrontendUrl"]}/reset-password?token={user.ResetPasswordToken}";
+        var baseUrl = _configuration["App:FrontendUrl"] ?? "https://flowoff.vercel.app";
+        var resetLink = $"{baseUrl.TrimEnd('/')}/reset-password?token={user.ResetPasswordToken}";
+
         _ = Task.Run(async () =>
         {
             var fullName = $"{user.FirstName} {user.LastName}";
-            try { await emailService.SendForgotPasswordEmailAsync(user.Email, fullName, resetLink); }
-            catch (Exception ex) { Console.WriteLine($"[EMAIL_ERROR] Reset: {ex.Message}"); }
+            try 
+            { 
+                await emailService.SendForgotPasswordEmailAsync(user.Email, fullName, resetLink); 
+                logger.LogInformation("Password reset email sent successfully to {Email}", user.Email);
+            }
+            catch (Exception ex) 
+            { 
+                logger.LogError(ex, "[EMAIL_ERROR] Failed to send forgot password email to {Email}", user.Email);
+            }
         });
 
         return true;
@@ -192,7 +216,7 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
     public async Task ResendInvitationAsync(Guid userExternalId)
     {
         var user = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == userExternalId && 
-                                                              (u.Status == UserStatus.Pending || u.Status == UserStatus.InActive))
+                                                               (u.Status == UserStatus.Pending || u.Status == UserStatus.InActive))
                    ?? throw new AppException(404, "User not found or already activated", "NOT_FOUND");
 
         if (user.Status == UserStatus.InActive)
@@ -223,7 +247,8 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
 
         await context.SaveChangesAsync();
 
-        var inviteLink = $"{_configuration["App:FrontendUrl"]}/set-password?token={token}";
+        var baseUrl = _configuration["App:FrontendUrl"] ?? "https://flowoff.vercel.app";
+        var inviteLink = $"{baseUrl.TrimEnd('/')}/set-password?token={token}";
 
         _ = Task.Run(async () =>
         {
@@ -232,10 +257,11 @@ public class InvitationService(IAppDbContext context, IConfiguration configurati
             try
             {
                 await emailService.SendInviteEmailAsync(user.Email, fullName, inviteLink);
+                logger.LogInformation("Invitation email resent successfully to {Email}", user.Email);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[EMAIL_ERROR] Resend: {ex.Message}");
+                logger.LogError(ex, "[EMAIL_ERROR] Failed to resend invite email to {Email}", user.Email);
             }
         });
     }

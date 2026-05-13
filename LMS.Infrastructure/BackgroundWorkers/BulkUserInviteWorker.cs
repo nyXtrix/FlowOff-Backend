@@ -6,11 +6,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using LMS.Application.Features.Organization.Employees.Services;
 
 namespace LMS.Infrastructure.BackgroundWorkers;
 
-public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory) : BackgroundService
+public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory, ILogger<BulkUserInviteWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -33,7 +34,7 @@ public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory) : Backgroun
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[BULK_QUOTA_ERROR] Failed to reset quotas: {ex.Message}");
+                        logger.LogError(ex, "[BULK_QUOTA_ERROR] Failed to reset quotas");
                     }
 
                     var queuedOperations = await context.BulkUserInvites
@@ -48,7 +49,7 @@ public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory) : Backgroun
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[BULK_PROCESS_ERROR] {op.ExternalId}: {ex.Message}");
+                            logger.LogError(ex, "[BULK_PROCESS_ERROR] Failed to process upload {ExternalId}", op.ExternalId);
                         }
                     }
 
@@ -64,6 +65,11 @@ public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory) : Backgroun
                             .Take(tenant.RemainingDailyInvites)
                             .ToListAsync(stoppingToken);
 
+                        if (pendingUsers.Any())
+                        {
+                            logger.LogInformation("Processing {Count} bulk invites for tenant {TenantId}", pendingUsers.Count, tenant.Id);
+                        }
+
                         foreach (var user in pendingUsers)
                         {
                             try
@@ -77,15 +83,18 @@ public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory) : Backgroun
                                 };
                                 context.UserInvites.Add(invite);
                                 
-                                var inviteLink = $"{configuration["App:FrontendUrl"]}/set-password?token={token}";
+                                var baseUrl = configuration["App:FrontendUrl"] ?? "https://flowoff.vercel.app";
+                                var inviteLink = $"{baseUrl.TrimEnd('/')}/set-password?token={token}";
                                 var fullName = $"{user.FirstName} {user.LastName}";
+                                
                                 await emailService.SendInviteEmailAsync(user.Email, fullName, inviteLink);
+                                logger.LogInformation("Bulk invitation email sent to {Email}", user.Email);
 
                                 tenant.RemainingDailyInvites--;
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine($"[BULK_INVITE_ERROR] {user.Email}: {ex.Message}");
+                                logger.LogError(ex, "[BULK_INVITE_ERROR] Failed to send email to {Email}", user.Email);
                                 user.Status = UserStatus.InActive;
                             }
                         }
@@ -96,7 +105,7 @@ public class BulkUserInviteWorker(IServiceScopeFactory scopeFactory) : Backgroun
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[BULK_WORKER_WAITING] Database or schema not ready: {ex.Message}");
+                logger.LogWarning(ex, "[BULK_WORKER_WAITING] Database or schema might not be ready");
             }
 
             await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);

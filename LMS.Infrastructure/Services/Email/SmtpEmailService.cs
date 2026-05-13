@@ -3,11 +3,12 @@ using LMS.Application.Common.Interfaces;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using MimeKit;
 
 namespace LMS.Infrastructure.Services.Email;
 
-public class SmtpEmailService(IConfiguration configuration) : IEmailService
+public class SmtpEmailService(IConfiguration configuration, ILogger<SmtpEmailService> logger) : IEmailService
 {
     private readonly string _smtpHost = configuration["Smtp:Host"] ?? throw new InvalidOperationException("Smtp:Host is not configured.");
     private readonly int _smtpPort = int.Parse(configuration["Smtp:Port"] ?? "587");
@@ -18,6 +19,8 @@ public class SmtpEmailService(IConfiguration configuration) : IEmailService
 
     public async Task SendEmailAsync(string toAddress, string subject, string body)
     {
+        logger.LogInformation("Attempting to send email to {ToAddress} via {Host}:{Port}", toAddress, _smtpHost, _smtpPort);
+
         var email = new MimeMessage();
         email.From.Add(new MailboxAddress(_fromName, _fromAddress));
         email.To.Add(MailboxAddress.Parse(toAddress));
@@ -25,19 +28,25 @@ public class SmtpEmailService(IConfiguration configuration) : IEmailService
         email.Body = new TextPart("html") { Text = body };
 
         using var smtp = new SmtpClient();
-
-        smtp.Timeout = 10000;
+        smtp.Timeout = 20000; // Increased to 20s
 
         try
         {
-            await smtp.ConnectAsync(_smtpHost, _smtpPort, SecureSocketOptions.StartTls);
+            logger.LogDebug("Connecting to SMTP server...");
+            await smtp.ConnectAsync(_smtpHost, _smtpPort, SecureSocketOptions.Auto);
+            
+            logger.LogDebug("Authenticating...");
             await smtp.AuthenticateAsync(_smtpUser, _smtpPass);
+            
+            logger.LogDebug("Sending message...");
             await smtp.SendAsync(email);
+            
             await smtp.DisconnectAsync(true);
+            logger.LogInformation("Email sent successfully to {ToAddress}", toAddress);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[SMTP_CRITICAL_ERROR] {ex.Message}");
+            logger.LogError(ex, "[SMTP_CRITICAL_ERROR] Failed to send email to {ToAddress} via {Host}:{Port}. Error: {Message}", toAddress, _smtpHost, _smtpPort, ex.Message);
             throw;
         }
     }
