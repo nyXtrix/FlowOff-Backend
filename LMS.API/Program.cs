@@ -152,7 +152,7 @@ builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<ILookupService, LookupService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<BulkUserInviteService>();
-builder.Services.AddScoped<ITeamService, TeamServices>();
+builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IPermissionResolver, PermissionResolver>();
 builder.Services.AddScoped<IPermissionStrategy, DatabaseRoleStrategy>();
 builder.Services.AddScoped<IPermissionStrategy, SystemDefaultStrategy>();
@@ -224,10 +224,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"] 
+    ?? throw new InvalidOperationException("CRITICAL: Redis connection string 'Redis__ConnectionString' is missing.");
 
+builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnectionString));
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = builder.Configuration["Redis:ConnectionString"];
+    options.Configuration = redisConnectionString;
 });
 
 var app = builder.Build();

@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LMS.Application.Features.Leaves.Services;
 
-public class LeaveConfigService(IAppDbContext context) : ILeaveConfigService
+public class LeaveConfigService(IAppDbContext context, ICacheService cache) : ILeaveConfigService
 {
     public async Task<PaginatedResult<LeaveTypeResponse>> GetLeaveTypesAsync(int tenantId, int page, int pageSize)
     {
@@ -41,6 +41,7 @@ public class LeaveConfigService(IAppDbContext context) : ILeaveConfigService
         leaveType.DefaultAnnualAllowence = request.DefaultAnnualAllowence;
 
         await context.SaveChangesAsync();
+        await cache.RemoveAsync($"lookup_leavetypes_{tenantId}");
     }
 
     public async Task DeleteLeaveTypeAsync(Guid externalId, int tenantId)
@@ -59,6 +60,7 @@ public class LeaveConfigService(IAppDbContext context) : ILeaveConfigService
         context.LeaveTypes.Remove(leaveType);
 
         await context.SaveChangesAsync();
+        await cache.RemoveAsync($"lookup_leavetypes_{tenantId}");
     }
 
     public async Task<Guid> CreateLeaveTypeAsync(CreateLeaveTypeRequest request, int tenantId)
@@ -94,6 +96,8 @@ public class LeaveConfigService(IAppDbContext context) : ILeaveConfigService
 
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            await cache.RemoveAsync($"lookup_leavetypes_{tenantId}");
 
             return leaveType.ExternalId;
         }

@@ -1,12 +1,14 @@
 using System.Text.Json;
 using LMS.Application.Common.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
+using StackExchange.Redis;
 
 namespace LMS.Infrastructure.Services.Redis;
 
-public class RedisCacheService(IDistributedCache cache) : ICacheService
+public class RedisCacheService(IDistributedCache cache, IConnectionMultiplexer redis) : ICacheService
 {
     private readonly IDistributedCache _cache = cache;
+    private readonly IConnectionMultiplexer _redis = redis;
 
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
@@ -28,5 +30,20 @@ public class RedisCacheService(IDistributedCache cache) : ICacheService
     public async Task RemoveAsync(string key)
     {
         await _cache.RemoveAsync(key);
+    }
+
+    public async Task RemoveByPrefixAsync(string prefix)
+    {
+        var endpoints = _redis.GetEndPoints();
+        foreach (var endpoint in endpoints)
+        {
+            var server = _redis.GetServer(endpoint);
+            var keys = server.Keys(pattern: prefix + "*").ToArray();
+            if (keys.Length > 0)
+            {
+                var db = _redis.GetDatabase();
+                await db.KeyDeleteAsync(keys);
+            }
+        }
     }
 }

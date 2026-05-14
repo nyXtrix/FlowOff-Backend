@@ -1,3 +1,4 @@
+using System;
 using LMS.Application.Common.DTOs;
 using LMS.Application.Common.Interfaces;
 using LMS.Application.Common.Modals;
@@ -15,6 +16,10 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
 {
     public async Task<PaginatedResult<ApprovalListResponse>> GetApprovalsAsync(QueryRequest request, Guid userExternalId)
     {
+        var cacheKey = $"appr_{userExternalId}_{request.Page}_{request.PageSize}_{request.SearchTerm}_{string.Join("_", request.Filters?.Select(f => f.Key + f.Value) ?? new List<string>())}";
+        var cached = await cache.GetAsync<PaginatedResult<ApprovalListResponse>>(cacheKey);
+        if (cached != null) return cached;
+
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.ExternalId == userExternalId)
             ?? throw new AppException(404, "User not found", "NOT_FOUND");
@@ -63,7 +68,9 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
                                 a.Status
                                )).ToListAsync();
 
-        return new PaginatedResult<ApprovalListResponse>(items, totalCount);
+        var result = new PaginatedResult<ApprovalListResponse>(items, totalCount);
+        await cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10));
+        return result;
     }
 
     public async Task ProcessApprovalAsync(ProcessApprovalRequest request, Guid userExternalId)
@@ -139,6 +146,8 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
                     if (approverExtId != Guid.Empty)
                     {
                         await notificationService.SendNotificationAsync(approverExtId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                        await cache.RemoveAsync($"appr_stats_{approverExtId}");
+                        await cache.RemoveByPrefixAsync($"appr_{approverExtId}");
                     }
                 }
                 else if (nextStep.RoleId.HasValue)
@@ -157,6 +166,8 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
                         if (approverExtId != Guid.Empty)
                         {
                             await notificationService.SendNotificationAsync(approverExtId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                            await cache.RemoveAsync($"appr_stats_{approverExtId}");
+                            await cache.RemoveByPrefixAsync($"appr_{approverExtId}");
                         }
                     }
                     else if (nextStep.RoleId.HasValue)
@@ -169,14 +180,20 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
                         foreach (var extId in approverExtIds)
                         {
                             await notificationService.SendNotificationAsync(extId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                            await cache.RemoveAsync($"appr_stats_{extId}");
+                            await cache.RemoveByPrefixAsync($"appr_{extId}");
                         }
                     }
                 }
             }
         }
 
-        Console.WriteLine($"[APPROVAL_PROCESS] Step {currentStep.ExternalId} processed. Status: {currentStep.Status}. LeaveRequest Status: {currentStep.LeaveRequest.Status}");
         await context.SaveChangesAsync();
+
+        await cache.RemoveAsync($"appr_stats_{userExternalId}");
+        await cache.RemoveByPrefixAsync($"appr_{userExternalId}");
+        await cache.RemoveAsync($"bal_{applicant.ExternalId}");
+        await cache.RemoveByPrefixAsync($"hist_{applicant.ExternalId}");
     }
 
     public async Task ForwardApprovalAsync(ForwardApprovalRequest request, Guid userExternalId)
@@ -230,10 +247,19 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
         await context.SaveChangesAsync();
 
         await notificationService.SendNotificationAsync(newApprover.ExternalId, "Leave Approval Forwarded", $"{applicant.FirstName}'s leave request has been forwarded to you for approval by {user.FirstName}.", "Info", tenantId, $"{baseUrl}/approvals");
+        
+        await cache.RemoveAsync($"appr_stats_{userExternalId}");
+        await cache.RemoveByPrefixAsync($"appr_{userExternalId}");
+        await cache.RemoveAsync($"appr_stats_{newApprover.ExternalId}");
+        await cache.RemoveByPrefixAsync($"appr_{newApprover.ExternalId}");
     }
 
     public async Task<ApprovalStatsResponse> GetApprovalStatsAsync(Guid userExternalId)
     {
+        var cacheKey = $"appr_stats_{userExternalId}";
+        var cached = await cache.GetAsync<ApprovalStatsResponse>(cacheKey);
+        if (cached != null) return cached;
+
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.ExternalId == userExternalId)
             ?? throw new AppException(404, "User not found", "NOT_FOUND");
@@ -291,7 +317,9 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
             new StatCardDto("APPROVAL_RATE", "Approval Rate", $"{approvalRate}%", "Overall approval rate")
         };
 
-        return new ApprovalStatsResponse(stats);
+        var response = new ApprovalStatsResponse(stats);
+        await cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(10));
+        return response;
     }
 
     public async Task ResolveApproverForRoleStepAsync(LeaveApprovalStep step, Guid applicantExternalId, int tenantId)

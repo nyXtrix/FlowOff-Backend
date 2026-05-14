@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LMS.Application.Features.Organization.Department.Services;
 
-public class DepartmentService(IAppDbContext context) : IDepartmentService
+public class DepartmentService(IAppDbContext context, ICacheService cache) : IDepartmentService
 {
     public async Task<Guid> CreateDepartmentAsync(CreateDepartmentRequest request, int tenantId)
     {
@@ -28,6 +28,8 @@ public class DepartmentService(IAppDbContext context) : IDepartmentService
 
         context.Departments.Add(department);
         await context.SaveChangesAsync(CancellationToken.None);
+
+        await cache.RemoveAsync($"lookup_dept_{tenantId}");
 
         return department.ExternalId;
     }
@@ -51,6 +53,9 @@ public class DepartmentService(IAppDbContext context) : IDepartmentService
         if (request.IsActive.HasValue) department.IsActive = request.IsActive.Value;
 
         await context.SaveChangesAsync(CancellationToken.None);
+        await cache.RemoveAsync($"lookup_dept_{tenantId}");
+        await cache.RemoveByPrefixAsync($"empl_list_{tenantId}");
+        await cache.RemoveByPrefixAsync("team_");
     }
 
     public async Task DeleteDepartmentAsync(Guid id, int tenantId)
@@ -66,6 +71,9 @@ public class DepartmentService(IAppDbContext context) : IDepartmentService
 
         context.Departments.Remove(department);
         await context.SaveChangesAsync(CancellationToken.None);
+        await cache.RemoveAsync($"lookup_dept_{tenantId}");
+        await cache.RemoveByPrefixAsync($"empl_list_{tenantId}");
+        await cache.RemoveByPrefixAsync("team_");
     }
 
 

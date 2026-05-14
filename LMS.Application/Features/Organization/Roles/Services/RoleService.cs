@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LMS.Application.Features.Organization.Roles.Services;
 
-public class RoleService(IAppDbContext context) : IRoleService
+public class RoleService(IAppDbContext context, ICacheService cache) : IRoleService
 {
     public async Task<Guid> CreateRoleAsync(CreateRoleRequest request, int tenantId)
     {
@@ -33,6 +33,8 @@ public class RoleService(IAppDbContext context) : IRoleService
         await context.SaveChangesAsync();
 
         await MapPermissionsAsync(role.Id, request.Permissions);
+
+        await cache.RemoveAsync($"lookup_role_{tenantId}");
 
         return role.ExternalId;
     }
@@ -61,6 +63,8 @@ public class RoleService(IAppDbContext context) : IRoleService
         await MapPermissionsAsync(role.Id, request.Permissions);
 
         await context.SaveChangesAsync();
+        await cache.RemoveAsync($"lookup_role_{tenantId}");
+        await cache.RemoveByPrefixAsync("upr_");
     }
 
     public async Task DeleteRoleAsync(Guid id, int tenantId)
@@ -77,6 +81,8 @@ public class RoleService(IAppDbContext context) : IRoleService
 
         context.Roles.Remove(role);
         await context.SaveChangesAsync();
+        await cache.RemoveAsync($"lookup_role_{tenantId}");
+        await cache.RemoveByPrefixAsync("upr_");
     }
 
     public async Task<PaginatedResult<RoleResponse>> GetRolesAsync(int tenantId, QueryRequest request)
@@ -171,5 +177,7 @@ public class RoleService(IAppDbContext context) : IRoleService
 
         role.IsActive = isActive;
         await context.SaveChangesAsync();
+        await cache.RemoveAsync($"lookup_role_{tenantId}");
+        await cache.RemoveByPrefixAsync("upr_");
     }
 }

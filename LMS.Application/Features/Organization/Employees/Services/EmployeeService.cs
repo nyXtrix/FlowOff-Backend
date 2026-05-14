@@ -1,3 +1,4 @@
+using System;
 using LMS.Application.Common.DTOs;
 using LMS.Application.Common.Interfaces;
 using LMS.Application.Common.Modals;
@@ -12,10 +13,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LMS.Application.Features.Organization.Employees.Services;
 
-public class EmployeeService(IAppDbContext context, IPermissionResolver permissionResolver) : IEmployeeService
+public class EmployeeService(IAppDbContext context, IPermissionResolver permissionResolver, ICacheService cache) : IEmployeeService
 {
     public async Task<List<EmployeeLookupResponse>> GetEmployeeLookupsAsync(string query, int tenantId)
     {
+        var cacheKey = $"empl_lookup_{tenantId}_{query}";
+        var cached = await cache.GetAsync<List<EmployeeLookupResponse>>(cacheKey);
+        if (cached != null) return cached;
+
         var userQuery = context.Users.Where(u => u.TenantId == tenantId && u.Status == UserStatus.Activated);
 
         if (!string.IsNullOrWhiteSpace(query))
@@ -26,11 +31,17 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
                                      u.Email.ToLower().Contains(query));
 
         }
-        return await userQuery.Select(u => new EmployeeLookupResponse(u.FirstName + " " + u.LastName, u.ExternalId, u.Role.Name)).Take(20).ToListAsync();
+        var result = await userQuery.Select(u => new EmployeeLookupResponse(u.FirstName + " " + u.LastName, u.ExternalId, u.Role.Name)).Take(20).ToListAsync();
+        await cache.SetAsync(cacheKey, result, TimeSpan.FromHours(1));
+        return result;
     }
 
     public async Task<PaginatedResult<EmployeeListResponse>> GetEmployeesAsync(QueryRequest request, Guid userExternalId, int tenantId)
     {
+        var cacheKey = $"empl_list_{tenantId}_{userExternalId}_{request.Page}_{request.PageSize}_{request.SearchTerm}_{string.Join("_", request.Filters?.Select(f => f.Key + f.Value) ?? new List<string>())}";
+        var cached = await cache.GetAsync<PaginatedResult<EmployeeListResponse>>(cacheKey);
+        if (cached != null) return cached;
+
         var currentUser = await context.Users
             .Include(u => u.Role)
                 .ThenInclude(r => r.RolePermissions)
@@ -109,7 +120,9 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
                                     u.CreatedAt
                                )).ToListAsync();
 
-        return new PaginatedResult<EmployeeListResponse>(items, totalCount);
+        var result = new PaginatedResult<EmployeeListResponse>(items, totalCount);
+        await cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10));
+        return result;
     }
 
     public async Task<List<EmployeeListResponse>> GetRecentInvitesAsync(int tenantId)
@@ -135,6 +148,10 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
 
     public async Task<EmployeeProfileResponse> GetEmployeeProfileAsync(Guid employeeExternalId, Guid userExternalId, int tenantId)
     {
+        var cacheKey = $"empl_prof_{employeeExternalId}";
+        var cached = await cache.GetAsync<EmployeeProfileResponse>(cacheKey);
+        if (cached != null) return cached;
+
         var currentUser = await context.Users
             .Include(u => u.Role)
                 .ThenInclude(r => r.RolePermissions)
@@ -262,13 +279,16 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
             leaveHistory.Add(monthData);
         }
 
-        return new EmployeeProfileResponse
+        var response = new EmployeeProfileResponse
         {
             Employee = employeeDto,
             LeaveBalances = balanceDetails,
             RequestStatusCounts = statusCounts,
             LeaveHistory = leaveHistory
         };
+
+        await cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(30));
+        return response;
     }
 
     public async Task UpdateEmployeeProfileAsync(Guid employeeExternalId, UpdateEmployeeRequest request, Guid userExternalId, int tenantId)
@@ -345,5 +365,11 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
 
         user.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+
+        await cache.RemoveAsync($"empl_prof_{employeeExternalId}");
+        await cache.RemoveAsync($"upr_{employeeExternalId}");
+        await cache.RemoveByPrefixAsync($"empl_list_{tenantId}");
+        await cache.RemoveByPrefixAsync($"team_");
+        await cache.RemoveByPrefixAsync($"empl_lookup_{tenantId}");
     }
 }

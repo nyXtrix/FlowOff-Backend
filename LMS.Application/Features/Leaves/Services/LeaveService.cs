@@ -1,3 +1,4 @@
+using System;
 using LMS.Application.Common.Interfaces;
 using LMS.Application.Common.Modals;
 using LMS.Application.Features.Leaves.DTOs.Employee;
@@ -19,7 +20,8 @@ public class LeaveService(
     ILeaveCalculationEngine leaveCalculationEngine,
     IApprovalEngine approvalEngine,
     IApprovalService approvalService,
-    INotificationService notificationService) : ILeaveService
+    INotificationService notificationService,
+    ICacheService cache) : ILeaveService
 {
     public async Task<Guid> ApplyLeaveAsync(ApplyLeaveRequest request, Guid userExternalId, int tenantId)
     {
@@ -91,6 +93,9 @@ public class LeaveService(
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
 
+            await cache.RemoveAsync($"bal_{userExternalId}");
+            await cache.RemoveByPrefixAsync($"hist_{userExternalId}");
+
             if (firstStep?.Status == ApprovalStatus.Approved)
             {
                 await approvalService.ProcessApprovalAsync(new ProcessApprovalRequest(firstStep.ExternalId, true, "System: Auto-approved at creation"), userExternalId);
@@ -119,6 +124,8 @@ public class LeaveService(
                     if (approverExternalId != Guid.Empty)
                     {
                         await notificationService.SendNotificationAsync(approverExternalId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                        await cache.RemoveAsync($"appr_stats_{approverExternalId}");
+                        await cache.RemoveByPrefixAsync($"appr_{approverExternalId}");
                     }
                 }
                 else if (firstStep.RoleId.HasValue)
@@ -131,6 +138,8 @@ public class LeaveService(
                     foreach (var approverExtId in approverExternalIds)
                     {
                         await notificationService.SendNotificationAsync(approverExtId, notificationTitle, notificationMessage, "Info", tenantId, $"{baseUrl}/approvals");
+                        await cache.RemoveAsync($"appr_stats_{approverExtId}");
+                        await cache.RemoveByPrefixAsync($"appr_{approverExtId}");
                     }
                 }
             }
@@ -146,6 +155,10 @@ public class LeaveService(
 
     public async Task<PaginatedResult<MyLeaveRequestResponse>> GetMyHistoryAsync(Guid userExternalId, QueryRequest request)
     {
+        var cacheKey = $"hist_{userExternalId}_{request.Page}_{request.PageSize}_{request.SearchTerm}_{string.Join("_", request.Filters?.Select(f => f.Key + f.Value) ?? new List<string>())}";
+        var cached = await cache.GetAsync<PaginatedResult<MyLeaveRequestResponse>>(cacheKey);
+        if (cached != null) return cached;
+
         var user = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == userExternalId)
             ?? throw new AppException(404, "User not found", "NOT_FOUND");
 
@@ -189,7 +202,7 @@ public class LeaveService(
             }
         }
 
-        return await query
+        var result = await query
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new MyLeaveRequestResponse(
                 r.ExternalId,
@@ -201,14 +214,21 @@ public class LeaveService(
                 r.CreatedAt
             ))
             .ToPaginatedResultAsync(request);
+
+        await cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10));
+        return result;
     }
 
     public async Task<List<LeaveBalanceResponse>> GetMyBalancesAsync(Guid userExternalId)
     {
+        var cacheKey = $"bal_{userExternalId}";
+        var cached = await cache.GetAsync<List<LeaveBalanceResponse>>(cacheKey);
+        if (cached != null) return cached;
+
         var user = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == userExternalId)
             ?? throw new AppException(404, "User not found", "NOT_FOUND");
 
-        return await context.LeaveBalances
+        var result = await context.LeaveBalances
             .Include(b => b.LeaveType)
             .Where(b => b.UserId == user.Id && b.Year == DateTime.UtcNow.Year)
             .Select(b => new LeaveBalanceResponse(
@@ -219,6 +239,9 @@ public class LeaveService(
                 b.Year
             ))
             .ToListAsync();
+
+        await cache.SetAsync(cacheKey, result, TimeSpan.FromHours(1));
+        return result;
     }
 
     public async Task CancelRequestAsync(Guid requestExternalId, Guid userExternalId)
@@ -253,6 +276,9 @@ public class LeaveService(
         }
 
         await context.SaveChangesAsync();
+
+        await cache.RemoveAsync($"bal_{userExternalId}");
+        await cache.RemoveByPrefixAsync($"hist_{userExternalId}");
     }
 
     public async Task<List<HolidayResponse>> GetHolidaysAsync(int tenantId)
