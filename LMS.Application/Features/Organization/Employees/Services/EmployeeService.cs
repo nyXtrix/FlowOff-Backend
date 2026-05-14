@@ -10,6 +10,7 @@ using LMS.Domain.Enums;
 using LMS.Domain.Enums.Authorization;
 using LMS.Domain.Module.Authorization;
 using Microsoft.EntityFrameworkCore;
+using LMS.Application.Common.Extension;
 
 namespace LMS.Application.Features.Organization.Employees.Services;
 
@@ -43,9 +44,7 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
         if (cached != null) return cached;
 
         var currentUser = await context.Users
-            .Include(u => u.Role)
-                .ThenInclude(r => r.RolePermissions)
-                    .ThenInclude(rp => rp.Permissions)
+            .WithPermissions()
             .FirstOrDefaultAsync(u => u.ExternalId == userExternalId && u.TenantId == tenantId) 
             ?? throw new AppException(404, "User context not found", "NOT_FOUND");
 
@@ -153,11 +152,7 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
         if (cached != null) return cached;
 
         var currentUser = await context.Users
-            .Include(u => u.Role)
-                .ThenInclude(r => r.RolePermissions)
-                    .ThenInclude(rp => rp.Permissions)
-            .Include(u => u.UserPermissionOverrides)
-                .ThenInclude(ov => ov.Permissions)
+            .WithPermissions()
             .FirstOrDefaultAsync(u => u.ExternalId == userExternalId && u.TenantId == tenantId)
             ?? throw new AppException(404, "User context not found", "NOT_FOUND");
 
@@ -294,9 +289,7 @@ public class EmployeeService(IAppDbContext context, IPermissionResolver permissi
     public async Task UpdateEmployeeProfileAsync(Guid employeeExternalId, UpdateEmployeeRequest request, Guid userExternalId, int tenantId)
     {
         var currentUser = await context.Users
-            .Include(u => u.Role)
-                .ThenInclude(r => r.RolePermissions)
-                    .ThenInclude(rp => rp.Permissions)
+            .WithPermissions()
             .FirstOrDefaultAsync(u => u.ExternalId == userExternalId && u.TenantId == tenantId)
             ?? throw new AppException(404, "User context not found", "NOT_FOUND");
 

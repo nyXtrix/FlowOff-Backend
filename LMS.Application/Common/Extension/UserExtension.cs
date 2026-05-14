@@ -10,4 +10,13 @@ public static class UserExtensions
     {
         return await users.FirstOrDefaultAsync(u => u.ExternalId == ecternalId) ?? throw new AppException(404, "User account not found in this system", "NOT_FOUND");
     }
+
+    public static IQueryable<User> WithPermissions(this IQueryable<User> query)
+    {
+        return query.Include(u => u.Role)
+                    .ThenInclude(r => r.RolePermissions)
+                        .ThenInclude(rp => rp.Permissions)
+                .Include(u => u.UserPermissionOverrides)
+                    .ThenInclude(upo => upo.Permissions);
+    }
 }

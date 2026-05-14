@@ -8,6 +8,7 @@ using LMS.Domain.Entities.Workflow;
 using LMS.Domain.Enums;
 using LMS.Domain.Enums.Authorization;
 using Microsoft.EntityFrameworkCore;
+using LMS.Application.Common.Extension;
 
 namespace LMS.Application.Features.Organization.Team.Services;
 
@@ -20,7 +21,7 @@ public class TeamService(IAppDbContext context, IPermissionResolver permissionRe
         if (cached != null) return cached;
 
         var user = await context.Users
-            .Include(u => u.Role)
+            .WithPermissions()
             .FirstOrDefaultAsync(u => u.ExternalId == userExternalId && u.TenantId == tenantId)
             ?? throw new AppException(404, "User not found", "NOT_FOUND");
 
