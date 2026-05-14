@@ -29,14 +29,13 @@ public class RuleEvaluator : IRuleEvaluator
 
     private bool EvaluateGroup(RuleGroup group, EvaluationContext context)
     {
-        if (group.Conditions == null || group.Conditions.Count == 0) return true;
-
         var isAnd = group.Operator.Equals("AND", StringComparison.OrdinalIgnoreCase);
+        if (group.Conditions == null || group.Conditions.Count == 0) return isAnd;
 
         foreach (var element in group.Conditions)
         {
             bool result;
-            if (element.TryGetProperty("operator", out _))
+            if (element.TryGetProperty("conditions", out _) || element.TryGetProperty("Conditions", out _))
             {
                 var subGroup = JsonSerializer.Deserialize<RuleGroup>(element.GetRawText(), _options);
                 result = subGroup != null && EvaluateGroup(subGroup, context);
