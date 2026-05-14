@@ -11,21 +11,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LMS.Application.Features.Organization.Team.Services;
 
-public class TeamServices(IAppDbContext context, IPermissionResolver permissionResolver) : ITeamService
+public class TeamService(IAppDbContext context, IPermissionResolver permissionResolver, ICacheService cache) : ITeamService
 {
     public async Task<TeamResponse> GetTeamAsync(Guid userExternalId, int tenantId, QueryRequest request)
     {
+        var cacheKey = $"team_{userExternalId}_{request.Page}_{request.PageSize}_{request.SearchTerm}_{string.Join("_", request.Filters?.Select(f => f.Key + f.Value) ?? new List<string>())}";
+        var cached = await cache.GetAsync<TeamResponse>(cacheKey);
+        if (cached != null) return cached;
 
-        var today = DateTime.UtcNow.Date;
+        var user = await context.Users
+            .Include(u => u.Role)
+            .FirstOrDefaultAsync(u => u.ExternalId == userExternalId && u.TenantId == tenantId)
+            ?? throw new AppException(404, "User not found", "NOT_FOUND");
 
-        var user = await context.Users.Include(u => u.Role)
-                        .ThenInclude(r => r.RolePermissions).ThenInclude(rp => rp.Permissions)
-                        .Include(u => u.UserPermissionOverrides).ThenInclude(ov => ov.Permissions).FirstOrDefaultAsync(u => u.ExternalId == userExternalId && u.TenantId == tenantId)
-                         ?? throw new AppException(404, "User not found", "NOT_FOUND");
+        var permissions = await permissionResolver.ResolveForUserAsync(user);
 
-        var permission = await permissionResolver.ResolveForUserAsync(user);
-
-        if (!permission.TryGetValue("TEAM", out var teamPermission))
+        if (!permissions.TryGetValue("TEAM", out var teamPermission))
         {
             throw new AppException(403, "Access denied for team module", "FORBIDDEN");
         }
@@ -45,53 +46,68 @@ public class TeamServices(IAppDbContext context, IPermissionResolver permissionR
             query = query.Where(u => u.DepartmentId == user.DepartmentId);
         }
 
-        var teamUserIds = await query.Select(u => u.Id).ToListAsync() ?? new List<int>();
-
-        var onLeaveRequests = await context.LeaveRequests.Include(r => r.LeaveType).Where(r => teamUserIds.Contains(r.UserId) && r.Status == LeaveStatus.Approved
-                                                   && r.StartDate.Date <= today && r.EndDate.Date >= today).ToListAsync() ?? new List<LeaveRequest>();
-
-        var holiday = await context.Holidays.FirstOrDefaultAsync(h => h.TenantId == tenantId && h.Date == today);
-
-        var tenant = await context.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
-        var isWeekOff = false;
-        if (tenant != null && !string.IsNullOrWhiteSpace(tenant.WeekoffDays))
-        {
-            var weekOffDays = tenant.WeekoffDays.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                  .Select(s => int.TryParse(s, out var d) ? d : -1)
-                                  .ToHashSet();
-            isWeekOff = weekOffDays.Contains((int)today.DayOfWeek);
-        }
-
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
             var search = request.SearchTerm.ToLower();
             query = query.Where(u => u.FirstName.ToLower().Contains(search) || u.LastName.ToLower().Contains(search) || u.Email.ToLower().Contains(search));
         }
 
+        var teamUserIds = await query.Select(u => u.Id).ToListAsync();
+        var today = DateTime.UtcNow.Date;
+
+        var onLeaveRequests = await context.LeaveRequests
+            .Include(r => r.LeaveType)
+            .Where(r => teamUserIds.Contains(r.UserId) && r.Status == LeaveStatus.Approved
+                        && r.StartDate.Date <= today && r.EndDate.Date >= today)
+            .ToListAsync();
+
+        var tenant = await context.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
+        var holiday = await context.Holidays.FirstOrDefaultAsync(h => h.TenantId == tenantId && h.Date == today);
+        var allHolidays = await context.Holidays.Where(h => h.TenantId == tenantId && h.Date >= today).Select(h => h.Date.Date).ToListAsync();
+
+        var weekOffDays = new HashSet<int>();
+        if (tenant != null && !string.IsNullOrWhiteSpace(tenant.WeekoffDays))
+        {
+            weekOffDays = tenant.WeekoffDays.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                  .Select(s => int.TryParse(s, out var d) ? d : -1)
+                                  .Where(d => d != -1)
+                                  .ToHashSet();
+        }
+        var isWeekOff = weekOffDays.Contains((int)today.DayOfWeek);
+
         var totalCount = await query.CountAsync();
-        var pagedUser = await query.OrderBy(u => u.FirstName).Skip((request.Page - 1) * request.PageSize).Take(request.PageSize).ToListAsync();
+        var pagedUsers = await query.OrderBy(u => u.FirstName).Skip((request.Page - 1) * request.PageSize).Take(request.PageSize).ToListAsync();
 
-        var items = pagedUser.Select(u =>
-          {
-              var activeLeave = onLeaveRequests.FirstOrDefault(r => r.UserId == u.Id);
+        var items = pagedUsers.Select(u =>
+        {
+            var activeLeave = onLeaveRequests.FirstOrDefault(r => r.UserId == u.Id);
+            var backOnDate = DateTime.MinValue;
 
-              return new TeamMemberResponse(
-                 u.ExternalId,
-                 u.FirstName,
-                 u.LastName,
-                 u.Email,
-                 u.Department?.Name ?? "N/A",
-                 u.Role?.Name ?? "N/A",
-                 (int)u.Status,
-                 u.CreatedAt,
-                 activeLeave != null,
-                 activeLeave?.LeaveType?.Name,
-                 activeLeave?.EndDate ?? DateTime.MinValue
-                );
-          }).ToList();
+            if (activeLeave != null)
+            {
+                backOnDate = activeLeave.EndDate.Date.AddDays(1);
+                while (weekOffDays.Contains((int)backOnDate.DayOfWeek) || allHolidays.Contains(backOnDate.Date))
+                {
+                    backOnDate = backOnDate.AddDays(1);
+                }
+            }
 
+            return new TeamMemberResponse(
+                u.ExternalId,
+                u.FirstName,
+                u.LastName,
+                u.Email,
+                u.Department?.Name ?? "N/A",
+                u.Role?.Name ?? "N/A",
+                (int)u.Status,
+                u.CreatedAt,
+                activeLeave != null,
+                activeLeave?.LeaveType?.Name,
+                backOnDate
+            );
+        }).ToList();
 
-        return new TeamResponse(
+        var response = new TeamResponse(
             new TeamSummaryResponse(
                 teamUserIds.Count,
                 onLeaveRequests.Count,
@@ -102,5 +118,8 @@ public class TeamServices(IAppDbContext context, IPermissionResolver permissionR
             ),
             new PaginatedResult<TeamMemberResponse>(items, totalCount)
         );
+
+        await cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(10));
+        return response;
     }
 }
