@@ -17,7 +17,7 @@ public class ManagerContextStrategy(IAppDbContext context) : IPermissionStrategy
 
         var hasReportees = await context.Users.AnyAsync(u => u.ManagerId == user.Id && u.Status == UserStatus.Activated);
         var isAssignedApprover = await context.LeaveApprovalSteps.AnyAsync(a => a.ApproverId == user.Id);
-        var isRoleApprover = await context.LeaveApprovalSteps.AnyAsync(s => s.RoleId == user.RoleId && s.ApproverId == user.Id && s.Status == ApprovalStatus.Pending);
+        var isRoleApprover = await context.LeaveApprovalSteps.AnyAsync(s => s.RoleId == user.RoleId && s.Status == ApprovalStatus.Pending);
 
         Console.WriteLine($"[PERM_RESOLVE] User: {user.FirstName} {user.LastName} (ID: {user.Id}, RoleId: {user.RoleId}) | HasReportees: {hasReportees} | IsAssigned: {isAssignedApprover} | IsRoleApprover: {isRoleApprover}");
 

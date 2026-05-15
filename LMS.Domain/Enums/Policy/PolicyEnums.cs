@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace LMS.Domain.Enums.Policy;
 
 public enum PolicyScope
@@ -33,9 +35,18 @@ public enum RoundingRule
     Hour
 }
 
+public enum LeavePolicyType
+{
+    Allocation,
+    Usage,
+    Balance,
+    WeekOff
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum WorkflowApprovalMode
 {
     Sequential,
-    ParallelAll,
-    ParallelAny
+    AnyOne,
+    Parallel
 }

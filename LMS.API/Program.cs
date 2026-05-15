@@ -137,11 +137,7 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
-builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>())
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
+builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>());
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
@@ -248,7 +244,6 @@ if (args.Contains("db-reset"))
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await DbSeeder.ResetDatabaseAsync(db);
-        await DbSeeder.SeedPermissionsAsync(db);
         await DbSeeder.SeedRolesAsync(db);
     }
     Console.WriteLine("Database reset successfully!");
@@ -262,7 +257,6 @@ if (args.Contains("db-migrate"))
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.Migrate();
-        await DbSeeder.SeedPermissionsAsync(db);
         await DbSeeder.SeedRolesAsync(db);
         await DbSeeder.SeedHolidaysAsync(db);
     }

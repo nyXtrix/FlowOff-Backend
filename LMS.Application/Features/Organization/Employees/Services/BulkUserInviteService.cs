@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.Json;
 using LMS.Application.Common.Interfaces;
 using LMS.Application.Common.Modals;
 using LMS.Domain.Entities.Users;
@@ -98,7 +99,7 @@ public class BulkUserInviteService(IAppDbContext context, IStorageService storag
 
                 if (importedCount > 0)
                 {
-                    await MigrateFromTempAsync(connection, bulkInvite.TenantId, bulkInvite.Id);
+                    await MigrateFromTempAsync(connection, bulkInvite.TenantId, bulkInvite);
                     await ResolveManagerAsync(connection, bulkInvite.TenantId);
                 }
                 else 
@@ -149,60 +150,57 @@ public class BulkUserInviteService(IAppDbContext context, IStorageService storag
 
     private static async Task CreateTempTableAsync(NpgsqlConnection connection)
     {
-        var sql = @"CREATE TEMP TABLE IF NOT EXISTS temp_user_import(
-            first_name TEXT, last_name TEXT, email TEXT, role_name TEXT, dept_name TEXT, manager_email TEXT, gender TEXT
-        ); TRUNCATE TABLE temp_user_import;";
+        var sql = @"
+            CREATE TEMP TABLE temp_user_import(
+                first_name TEXT, last_name TEXT, email TEXT, role_name TEXT, dept_name TEXT, manager_email TEXT, gender TEXT
+            ); 
+            CREATE TEMP TABLE temp_import_results(
+                email TEXT, status INT, error_message TEXT
+            );";
 
         using var cmd = new NpgsqlCommand(sql, connection);
         await cmd.ExecuteNonQueryAsync();
     }
 
-    private async Task MigrateFromTempAsync(NpgsqlConnection connection, int tenantId, int bulkInviteId)
+    private async Task MigrateFromTempAsync(NpgsqlConnection connection, int tenantId, BulkUserInvite bulkInvite)
     {
         try 
         {
-            var logDuplicatesSql = $@"
-                INSERT INTO ""BulkUserInviteRowResults"" (""BulkUserInviteId"", ""Email"", ""Status"", ""ErrorMessage"", ""CreatedAt"", ""UpdatedAt"", ""ExternalId"")
-                SELECT {bulkInviteId}, t.email, 1, 'Duplicate email in file', NOW(), NOW(), gen_random_uuid()
-                FROM temp_user_import t
-                WHERE ctid NOT IN (
-                    SELECT MIN(ctid) 
-                    FROM temp_user_import 
-                    GROUP BY email
-                );";
+            var logDuplicatesSql = @"
+                INSERT INTO temp_import_results (email, status, error_message)
+                SELECT email, 1, 'Duplicate email in file'
+                FROM temp_user_import
+                WHERE ctid NOT IN (SELECT MIN(ctid) FROM temp_user_import GROUP BY email);";
             using (var cmd = new NpgsqlCommand(logDuplicatesSql, connection)) await cmd.ExecuteNonQueryAsync();
 
             var dedupeSql = @"DELETE FROM temp_user_import WHERE ctid NOT IN (SELECT MIN(ctid) FROM temp_user_import GROUP BY email);";
             using (var cmd = new NpgsqlCommand(dedupeSql, connection)) await cmd.ExecuteNonQueryAsync();
 
             var skipExistingSql = $@"
-                INSERT INTO ""BulkUserInviteRowResults"" (""BulkUserInviteId"", ""Email"", ""Status"", ""ErrorMessage"", ""CreatedAt"", ""UpdatedAt"", ""ExternalId"")
-                SELECT {bulkInviteId}, t.email, 2, 'User already exists', NOW(), NOW(), gen_random_uuid()
+                INSERT INTO temp_import_results (email, status, error_message)
+                SELECT t.email, 2, 'User already exists'
                 FROM temp_user_import t
                 JOIN ""Users"" u ON t.email = u.""Email"" AND u.""TenantId"" = {tenantId};";
-
             using (var cmd = new NpgsqlCommand(skipExistingSql, connection)) await cmd.ExecuteNonQueryAsync();
 
             var invalidRolesSql = $@"
-                INSERT INTO ""BulkUserInviteRowResults"" (""BulkUserInviteId"", ""Email"", ""Status"", ""ErrorMessage"", ""CreatedAt"", ""UpdatedAt"", ""ExternalId"")
-                SELECT {bulkInviteId}, t.email, 1, 'Invalid Role Name: ' || COALESCE(t.role_name, 'NULL'), NOW(), NOW(), gen_random_uuid()
+                INSERT INTO temp_import_results (email, status, error_message)
+                SELECT t.email, 1, 'Invalid Role Name: ' || COALESCE(t.role_name, 'NULL')
                 FROM temp_user_import t
                 LEFT JOIN ""Roles"" r ON LOWER(r.""Name"") = LOWER(t.role_name) AND r.""TenantId"" = {tenantId}
-                WHERE r.""Id"" IS NULL AND t.email NOT IN (SELECT ""Email"" FROM ""BulkUserInviteRowResults"" WHERE ""BulkUserInviteId"" = {bulkInviteId});";
-
+                WHERE r.""Id"" IS NULL AND t.email NOT IN (SELECT email FROM temp_import_results);";
             using (var cmd = new NpgsqlCommand(invalidRolesSql, connection)) await cmd.ExecuteNonQueryAsync();
 
             var invalidDeptsSql = $@"
-                INSERT INTO ""BulkUserInviteRowResults"" (""BulkUserInviteId"", ""Email"", ""Status"", ""ErrorMessage"", ""CreatedAt"", ""UpdatedAt"", ""ExternalId"")
-                SELECT {bulkInviteId}, t.email, 1, 'Invalid Department Name: ' || COALESCE(t.dept_name, 'NULL'), NOW(), NOW(), gen_random_uuid()
+                INSERT INTO temp_import_results (email, status, error_message)
+                SELECT t.email, 1, 'Invalid Department Name: ' || COALESCE(t.dept_name, 'NULL')
                 FROM temp_user_import t
                 LEFT JOIN ""Departments"" d ON LOWER(d.""Name"") = LOWER(t.dept_name) AND d.""TenantId"" = {tenantId}
-                WHERE d.""Id"" IS NULL AND t.email NOT IN (SELECT ""Email"" FROM ""BulkUserInviteRowResults"" WHERE ""BulkUserInviteId"" = {bulkInviteId});";
-
+                WHERE d.""Id"" IS NULL AND t.email NOT IN (SELECT email FROM temp_import_results);";
             using (var cmd = new NpgsqlCommand(invalidDeptsSql, connection)) await cmd.ExecuteNonQueryAsync();
 
             var circularRefSql = $@"
-                INSERT INTO ""BulkUserInviteRowResults"" (""BulkUserInviteId"", ""Email"", ""Status"", ""ErrorMessage"", ""CreatedAt"", ""UpdatedAt"", ""ExternalId"")
+                INSERT INTO temp_import_results (email, status, error_message)
                 WITH RECURSIVE AllRelationships AS (
                     SELECT email, manager_email FROM temp_user_import WHERE manager_email IS NOT NULL AND manager_email <> ''
                     UNION ALL
@@ -216,31 +214,41 @@ public class BulkUserInviteService(IAppDbContext context, IStorageService storag
                     SELECT h.email, r.manager_email, h.path || r.manager_email, r.manager_email = ANY(h.path)
                     FROM Hierarchy h JOIN AllRelationships r ON h.manager_email = r.email WHERE NOT h.is_cycle
                 )
-                SELECT DISTINCT {bulkInviteId}, email, 1, 'Circular reporting detected', NOW(), NOW(), gen_random_uuid()
-                FROM Hierarchy WHERE is_cycle AND email NOT IN (SELECT ""Email"" FROM ""BulkUserInviteRowResults"" WHERE ""BulkUserInviteId"" = {bulkInviteId});";
-
+                SELECT DISTINCT email, 1, 'Circular reporting detected'
+                FROM Hierarchy WHERE is_cycle AND email NOT IN (SELECT email FROM temp_import_results);";
             using (var cmd = new NpgsqlCommand(circularRefSql, connection)) await cmd.ExecuteNonQueryAsync();
 
             var migrateSql = $@"
-                INSERT INTO ""Users"" (""TenantId"", ""FirstName"", ""LastName"", ""Email"", ""Status"", ""RoleId"", ""DepartmentId"", ""UnresolvedManagerEmail"", ""BulkUserInvitedId"", ""ExternalId"", ""CreatedAt"", ""UpdatedAt"", ""Gender"")
+                INSERT INTO ""Users"" (""TenantId"", ""FirstName"", ""LastName"", ""Email"", ""Status"", ""RoleId"", ""DepartmentId"", ""UnresolvedManagerEmail"", ""BulkUserInvitedId"", ""ExternalId"", ""CreatedAt"", ""UpdatedAt"", ""Gender"", ""PermissionOverridesJson"")
                 SELECT 
-                    {tenantId}, t.first_name, t.last_name, t.email, 1, r.""Id"", d.""Id"", t.manager_email, {bulkInviteId}, gen_random_uuid(), NOW(), NOW(),
-                    CASE WHEN LOWER(t.gender) = 'male' THEN 1 WHEN LOWER(t.gender) = 'female' THEN 2 WHEN LOWER(t.gender) IN ('other','others') THEN 3 ELSE 0 END
+                    {tenantId}, t.first_name, t.last_name, t.email, 1, r.""Id"", d.""Id"", t.manager_email, {bulkInvite.Id}, gen_random_uuid(), NOW(), NOW(),
+                    CASE WHEN LOWER(t.gender) = 'male' THEN 1 WHEN LOWER(t.gender) = 'female' THEN 2 WHEN LOWER(t.gender) IN ('other','others') THEN 3 ELSE 0 END,
+                    '[]'
                 FROM temp_user_import t 
                 JOIN ""Roles"" r ON LOWER(r.""Name"") = LOWER(t.role_name) AND r.""TenantId"" = {tenantId}
                 LEFT JOIN ""Departments"" d ON LOWER(d.""Name"") = LOWER(t.dept_name) AND d.""TenantId"" = {tenantId}
-                WHERE t.email NOT IN (SELECT ""Email"" FROM ""BulkUserInviteRowResults"" WHERE ""BulkUserInviteId"" = {bulkInviteId});";
-
+                WHERE t.email NOT IN (SELECT email FROM temp_import_results);";
             using (var cmd = new NpgsqlCommand(migrateSql, connection)) await cmd.ExecuteNonQueryAsync();
 
-            var updateCountsSql = $@"
-                UPDATE ""BulkUserInvites"" 
-                SET ""SuccessCount"" = (SELECT COUNT(*) FROM ""Users"" WHERE ""BulkUserInvitedId"" = {bulkInviteId}),
-                    ""FailureCount"" = (SELECT COUNT(*) FROM ""BulkUserInviteRowResults"" WHERE ""BulkUserInviteId"" = {bulkInviteId} AND ""Status"" = 1),
-                    ""ProcessedRows"" = (SELECT COUNT(*) FROM ""Users"" WHERE ""BulkUserInvitedId"" = {bulkInviteId}) + (SELECT COUNT(*) FROM ""BulkUserInviteRowResults"" WHERE ""BulkUserInviteId"" = {bulkInviteId})
-                WHERE ""Id"" = {bulkInviteId};";
-            
-            using (var cmd = new NpgsqlCommand(updateCountsSql, connection)) await cmd.ExecuteNonQueryAsync();
+            var results = new List<BulkRowResultDto>();
+            using (var cmd = new NpgsqlCommand("SELECT email, status, error_message FROM temp_import_results", connection))
+            using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    results.Add(new BulkRowResultDto
+                    {
+                        Email = reader.GetString(0),
+                        Status = reader.GetInt32(1),
+                        ErrorMessage = reader.IsDBNull(2) ? null : reader.GetString(2)
+                    });
+                }
+            }
+
+            bulkInvite.RowResultsJson = JsonSerializer.Serialize(results);
+            bulkInvite.SuccessCount = await context.Users.CountAsync(u => u.BulkUserInvitedId == bulkInvite.Id);
+            bulkInvite.FailureCount = results.Count(r => r.Status == 1);
+            bulkInvite.ProcessedRows = bulkInvite.SuccessCount + results.Count;
         }
         catch (Exception ex)
         {
@@ -248,7 +256,7 @@ public class BulkUserInviteService(IAppDbContext context, IStorageService storag
         }
         finally 
         {
-            using var dropCmd = new NpgsqlCommand("DROP TABLE IF EXISTS temp_user_import;", connection);
+            using var dropCmd = new NpgsqlCommand("DROP TABLE IF EXISTS temp_user_import; DROP TABLE IF EXISTS temp_import_results;", connection);
             await dropCmd.ExecuteNonQueryAsync();
         }
     }
@@ -332,16 +340,9 @@ public class BulkUserInviteService(IAppDbContext context, IStorageService storag
             .FirstOrDefaultAsync(x => x.ExternalId == externalId)
             ?? throw new AppException(404, "Bulk invite not found", "INVITE_NOT_FOUND");
 
-        var results = await context.BulkUserInviteRowResults
-            .Where(x => x.BulkUserInviteId == invite.Id)
-            .OrderBy(x => x.Id)
-            .Select(x => new BulkRowResultDto
-            {
-                Email = x.Email,
-                Status = (int)x.Status,
-                ErrorMessage = x.ErrorMessage
-            })
-            .ToListAsync();
+        var results = string.IsNullOrEmpty(invite.RowResultsJson) 
+            ? new List<BulkRowResultDto>() 
+            : JsonSerializer.Deserialize<List<BulkRowResultDto>>(invite.RowResultsJson) ?? new List<BulkRowResultDto>();
 
         return new BulkUserInviteDetailsDto
         {

@@ -26,7 +26,9 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
 
         var query = context.LeaveApprovalSteps.Include(a => a.LeaveRequest).ThenInclude(r => r.User)
                             .Include(r => r.LeaveRequest).ThenInclude(r => r.LeaveType)
-                            .Where(a => (a.ApproverId == user.Id || a.RoleId == user.RoleId) && a.LeaveRequest.TenantId == user.TenantId)
+                            .Where(a => (a.ApproverId == user.Id || a.RoleId == user.RoleId) 
+                                        && a.LeaveRequest.TenantId == user.TenantId 
+                                        && a.LeaveRequest.Status != LeaveStatus.Cancelled)
                             .AsQueryable();
 
         if (request.Filters != null && request.Filters.TryGetValue("status", out var statusStr))
@@ -90,6 +92,12 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
 
         if (!isAuthorized)
             throw new AppException(403, "You are not authorized to approve this step.", "FORBIDDEN");
+
+        if (currentStep.LeaveRequest.Status == LeaveStatus.Cancelled)
+            throw new AppException(400, "This leave request has been cancelled and cannot be processed.", "REQUEST_CANCELLED");
+
+        if (currentStep.Status != ApprovalStatus.Pending)
+            throw new AppException(400, $"This approval step is already {currentStep.Status.ToString().ToLower()} and cannot be processed.", "INVALID_STEP_STATUS");
 
         var tenantId = currentStep.LeaveRequest.TenantId;
         var applicant = currentStep.LeaveRequest.User;
@@ -212,6 +220,12 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
         if ((currentStep.ApproverId != user.Id && currentStep.RoleId == null) || currentStep.LeaveRequest.TenantId != user.TenantId)
             throw new AppException(403, "Not authorized to forward this request", "FORBIDDEN");
 
+        if (currentStep.LeaveRequest.Status == LeaveStatus.Cancelled)
+            throw new AppException(400, "This leave request has been cancelled and cannot be forwarded.", "REQUEST_CANCELLED");
+
+        if (currentStep.Status != ApprovalStatus.Pending)
+            throw new AppException(400, $"This approval step is already {currentStep.Status.ToString().ToLower()} and cannot be forwarded.", "INVALID_STEP_STATUS");
+
         var tenantId = currentStep.LeaveRequest.TenantId;
         var applicant = currentStep.LeaveRequest.User;
 
@@ -266,7 +280,9 @@ public class ApprovalService(IAppDbContext context, INotificationService notific
 
         var baseQuery = context.LeaveApprovalSteps
             .Include(a => a.LeaveRequest)
-            .Where(a => (a.ApproverId == user.Id || a.RoleId == user.RoleId) && a.LeaveRequest.TenantId == user.TenantId);
+            .Where(a => (a.ApproverId == user.Id || a.RoleId == user.RoleId) 
+                        && a.LeaveRequest.TenantId == user.TenantId
+                        && a.LeaveRequest.Status != LeaveStatus.Cancelled);
 
         var pendingCount = await baseQuery.CountAsync(a => a.Status == ApprovalStatus.Pending);
         

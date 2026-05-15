@@ -7,6 +7,7 @@ using LMS.Application.Features.Organization.Roles.Interfaces;
 using LMS.Domain.Entities;
 using LMS.Domain.Enums.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace LMS.Application.Features.Organization.Roles.Services;
 
@@ -26,13 +27,12 @@ public class RoleService(IAppDbContext context, ICacheService cache) : IRoleServ
             Type = RoleType.CUSTOM,
             TenantId = tenantId,
             Code = $"CUSTOM_{request.Name.ToUpper().Replace(" ", "_")}_{tenantId}",
-            IsActive = true
+            IsActive = true,
+            PermissionsJson = SerializePermissions(request.Permissions)
         };
 
         context.Roles.Add(role);
         await context.SaveChangesAsync();
-
-        await MapPermissionsAsync(role.Id, request.Permissions);
 
         await cache.RemoveAsync($"lookup_role_{tenantId}");
 
@@ -41,7 +41,7 @@ public class RoleService(IAppDbContext context, ICacheService cache) : IRoleServ
 
     public async Task UpdateRoleAsync(Guid id, UpdateRoleRequest request, int tenantId)
     {
-        var role = await context.Roles.Include(r => r.RolePermissions)
+        var role = await context.Roles
                                       .FirstOrDefaultAsync(r => r.ExternalId == id && r.TenantId == tenantId) ?? throw new AppException(404, "Role not found", "ROLE_NOT_FOUND");
 
         if (role.Type == RoleType.SYSTEM) throw new AppException(403, "System roles cannot be modified", "SYSTEM_ROLE_IMMUTABLE");
@@ -57,10 +57,7 @@ public class RoleService(IAppDbContext context, ICacheService cache) : IRoleServ
 
         role.Description = request.Description;
         role.IsActive = request.IsActive;
-
-        context.RolePermissions.RemoveRange(role.RolePermissions);
-
-        await MapPermissionsAsync(role.Id, request.Permissions);
+        role.PermissionsJson = SerializePermissions(request.Permissions);
 
         await context.SaveChangesAsync();
         await cache.RemoveAsync($"lookup_role_{tenantId}");
@@ -74,7 +71,7 @@ public class RoleService(IAppDbContext context, ICacheService cache) : IRoleServ
 
         if (role.Type == RoleType.SYSTEM) throw new AppException(403, "System roles cannot be deleted", "SYSTEM_ROLE_IMMUTABLE");
 
-        if (await context.UserRoles.AnyAsync(ur => ur.RoleId == role.Id))
+        if (await context.Users.AnyAsync(u => u.RoleId == role.Id))
         {
             throw new AppException(409, "Cannot delete role assigned to users", "ROLE_HAS_USERS");
         }
@@ -88,8 +85,6 @@ public class RoleService(IAppDbContext context, ICacheService cache) : IRoleServ
     public async Task<PaginatedResult<RoleResponse>> GetRolesAsync(int tenantId, QueryRequest request)
     {
         var query = context.Roles
-            .Include(r => r.RolePermissions)
-                .ThenInclude(rp => rp.Permissions)
             .Where(r => r.TenantId == tenantId);
 
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
@@ -114,50 +109,46 @@ public class RoleService(IAppDbContext context, ICacheService cache) : IRoleServ
             r.Description,
             r.Type,
             r.IsActive,
-            r.UserRoles?.Count() ?? 0,
-            r.RolePermissions
-                .GroupBy(rp => rp.Permissions.Name.Split('.', StringSplitOptions.None)[0])
-                .ToDictionary(
-                    g => g.Key,
-                    g => new PermissionModuleDto(
-                        g.Select(rp => rp.Permissions.Name.Split('.', StringSplitOptions.None)[1]).ToList(),
-                        g.First().Scope
-                    )
-                )
+            0,
+            DeserializePermissions(r.PermissionsJson)
         )).ToList();
 
         return new PaginatedResult<RoleResponse>(mappedItems, result.TotalCount);
     }
 
-
-    private async Task MapPermissionsAsync(int roleId, Dictionary<string, PermissionModuleDto> permissions)
+    private string SerializePermissions(Dictionary<string, PermissionModuleDto> permissions)
     {
-        var rolePermissions = new List<RolePermission>();
-
+        var flatList = new List<string>();
         foreach (var module in permissions)
         {
             foreach (var action in module.Value.Actions)
             {
-                var permissionName = $"{module.Key}.{action}";
-                var permission = await context.Permissions.FirstOrDefaultAsync(p => p.Name == permissionName);
-
-                if (permission != null)
-                {
-                    rolePermissions.Add(new RolePermission
-                    {
-                        RoleId = roleId,
-                        PermissionId = permission.Id,
-                        Scope = module.Value.Scope
-                    });
-                }
+                flatList.Add($"{module.Key}.{action}");
             }
         }
+        return JsonSerializer.Serialize(flatList);
+    }
 
-        if (rolePermissions.Count > 0)
+    private Dictionary<string, PermissionModuleDto> DeserializePermissions(string? json)
+    {
+        var flatList = JsonSerializer.Deserialize<List<string>>(json ?? "[]") ?? new List<string>();
+        var modules = new Dictionary<string, PermissionModuleDto>();
+
+        foreach (var p in flatList)
         {
-            await context.RolePermissions.AddRangeAsync(rolePermissions);
-            await context.SaveChangesAsync();
+            var parts = p.Split('.');
+            if (parts.Length != 2) continue;
+
+            if (!modules.ContainsKey(parts[0]))
+            {
+                modules[parts[0]] = new PermissionModuleDto(new List<string> { parts[1] }, ScopeType.SELF);
+            }
+            else
+            {
+                modules[parts[0]].Actions.Add(parts[1]);
+            }
         }
+        return modules;
     }
 
     public async Task RoleStatusAsync(Guid id, bool isActive, int tenantId)

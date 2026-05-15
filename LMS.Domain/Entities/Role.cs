@@ -18,9 +18,8 @@ public class Role : BaseEntity
 
     public ScopeType Scope { get; set; } = ScopeType.SELF;
 
-    public int? DepartmentId { get; set; }
-    public Department? Department { get; set; }
+    public string PermissionsJson { get; set; } = "[]";
 
-    public ICollection<RolePermission> RolePermissions { get; set; } = null!;
-    public ICollection<UserRole> UserRoles { get; set; } = null!;
+    public Department? Department { get; set; }
+    public int? DepartmentId { get; set; }
 }

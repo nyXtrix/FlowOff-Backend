@@ -97,5 +97,4 @@ public class LeaveConfigController(ILeaveConfigService configService, IAppDbCont
         await configService.DeleteWorkflowRuleAsync(id, tenantId);
         return Ok(new { message = "Workflow rule deleted successfully" });
     }
-
 }

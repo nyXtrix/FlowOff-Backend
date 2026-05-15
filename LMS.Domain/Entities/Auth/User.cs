@@ -3,6 +3,7 @@ using LMS.Domain.Entities.Organization;
 using LMS.Domain.Entities.Users;
 using LMS.Domain.Entities.Workflow;
 using LMS.Domain.Enums;
+using LMS.Domain.Entities.Leave;
 
 namespace LMS.Domain.Entities.Auth;
 
@@ -22,6 +23,8 @@ public class User : BaseEntity
     public int RoleId { get; set; }
     public int? BulkUserInvitedId { get; set; }
     public string? UnresolvedManagerEmail { get; set; }
+    
+    public string PermissionOverridesJson { get; set; } = "[]";
 
     public BulkUserInvite? BulkUserInvite { get; set; }
     public Department? Department { get; set; }
@@ -29,6 +32,6 @@ public class User : BaseEntity
     public Tenant Tenant { get; set; } = null!;
     public User? Manager { get; set; }
     public ICollection<User>? Repotees { get; set; }
-    public ICollection<UserPermissionOverride> UserPermissionOverrides { get; set; } = new List<UserPermissionOverride>();
-    public ICollection<LeaveRequest> LeaveRequests { get; set; } = new List<LeaveRequest>();
+    public ICollection<LeaveRequest>? LeaveRequests { get; set; }
+    public ICollection<LeaveBalance>? LeaveBalances { get; set; }
 }

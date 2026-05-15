@@ -4,5 +4,5 @@ namespace LMS.Application.Features.Leaves.Interfaces;
 
 public interface ILeaveCalculationEngine
 {
-    Task<decimal> CalculateLeaveDaysAsync(DateTime startDate, DateTime endDate, Guid userExternalId, int tenantId, LeaveUsagePolicy usagePolicy, WeekOffPolicy weekOffPolicy);
+    Task<decimal> CalculateLeaveDaysAsync(DateTime startDate, DateTime endDate, Guid userExternalId, int tenantId, LeavePolicy usagePolicy, LeavePolicy weekOffPolicy);
 }

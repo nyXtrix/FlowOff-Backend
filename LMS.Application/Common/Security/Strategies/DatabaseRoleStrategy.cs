@@ -1,5 +1,6 @@
 using LMS.Domain.Enums.Authorization;
 using LMS.Domain.Module.Authorization;
+using System.Text.Json;
 
 namespace LMS.Application.Common.Security.Strategies;
 
@@ -9,16 +10,16 @@ public class DatabaseRoleStrategy : IPermissionStrategy
     public Task ExecuteAsync(PermissionContext context)
     {
         var user = context.User;
+        var role = user.Role;
         
-        var permissionMap = user.Role.RolePermissions
-            .Select(rp => new { rp.Permissions.Name, rp.Scope })
-            .ToList();
+        var rolePermissions = JsonSerializer.Deserialize<List<string>>(role.PermissionsJson ?? "[]") ?? new List<string>();
+        var grantedPermissions = rolePermissions.ToHashSet();
 
-        var grantedPermissions = permissionMap.Select(p => p.Name).ToHashSet();
-        foreach (var ov in user.UserPermissionOverrides)
+        var overrides = JsonSerializer.Deserialize<List<PermissionOverrideDto>>(user.PermissionOverridesJson ?? "[]") ?? new List<PermissionOverrideDto>();
+        foreach (var ov in overrides)
         {
-            if (ov.IsAllowed) grantedPermissions.Add(ov.Permissions.Name);
-            else grantedPermissions.Remove(ov.Permissions.Name);
+            if (ov.IsAllowed) grantedPermissions.Add(ov.PermissionName);
+            else grantedPermissions.Remove(ov.PermissionName);
         }
 
         foreach (var name in grantedPermissions)
@@ -29,7 +30,7 @@ public class DatabaseRoleStrategy : IPermissionStrategy
             var moduleKey = parts[0];
             if (!Enum.TryParse<ActionType>(parts[1], out var actionType)) continue;
 
-            var scope = permissionMap.FirstOrDefault(p => p.Name == name)?.Scope ?? user.Role.Scope;
+            var scope = role.Scope;
 
             if (!context.Permissions.ContainsKey(moduleKey))
             {
@@ -48,5 +49,11 @@ public class DatabaseRoleStrategy : IPermissionStrategy
         }
 
         return Task.CompletedTask;
+    }
+
+    private class PermissionOverrideDto
+    {
+        public string PermissionName { get; set; } = null!;
+        public bool IsAllowed { get; set; }
     }
 }

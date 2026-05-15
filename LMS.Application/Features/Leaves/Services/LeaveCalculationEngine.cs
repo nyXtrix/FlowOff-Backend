@@ -9,14 +9,17 @@ namespace LMS.Application.Features.Leaves.Services;
 
 public class LeaveCalculationEngine(IAppDbContext context) : ILeaveCalculationEngine
 {
-    public async Task<decimal> CalculateLeaveDaysAsync(DateTime startDate, DateTime endDate, Guid userExternalId, int tenantId, LeaveUsagePolicy usagePolicy, WeekOffPolicy weekOffPolicy)
+    public async Task<decimal> CalculateLeaveDaysAsync(DateTime startDate, DateTime endDate, Guid userExternalId, int tenantId, LeavePolicy usagePolicy, LeavePolicy weekOffPolicy)
     {
         var holidays = await context.Holidays
             .Where(h => h.TenantId == tenantId && h.Date >= startDate && h.Date <= endDate)
             .Select(h => DateTime.SpecifyKind(h.Date.Date, DateTimeKind.Utc))
             .ToListAsync();
-        var rulesJson = string.IsNullOrWhiteSpace(weekOffPolicy.RulesJson) ? "[]" : weekOffPolicy.RulesJson;
-        var weekOffRules = JsonSerializer.Deserialize<List<WeekOffRuleDto>>(rulesJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+
+        var weekOffConfig = JsonSerializer.Deserialize<WeekOffConfigDto>(weekOffPolicy.ConfigJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+        var weekOffRules = weekOffConfig.Rules ?? new();
+
+        var usageConfig = JsonSerializer.Deserialize<UsageConfigDto>(usagePolicy.ConfigJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
 
         decimal actualDays = 0;
 
@@ -27,11 +30,11 @@ public class LeaveCalculationEngine(IAppDbContext context) : ILeaveCalculationEn
 
             if (isHoliday)
             {
-                if (usagePolicy.SandwichEnabled && usagePolicy.IncludeHolidaysInSandwich) actualDays += 1;
+                if (usageConfig.SandwichEnabled && usageConfig.IncludeHolidaysInSandwich) actualDays += 1;
             }
             else if (isWeekOff)
             {
-                if (usagePolicy.SandwichEnabled && usagePolicy.IncludeWeekendsInSandwich) actualDays += 1;
+                if (usageConfig.SandwichEnabled && usageConfig.IncludeWeekendsInSandwich) actualDays += 1;
             }
             else
             {
@@ -48,7 +51,7 @@ public class LeaveCalculationEngine(IAppDbContext context) : ILeaveCalculationEn
         var rule = rules.FirstOrDefault(r => NormalizeDayName(r.Day).Equals(dayName, StringComparison.OrdinalIgnoreCase));
 
         if (rule == null) return false;
-        if (rule.Weeks.Count == 0 || rule.Weeks.Contains(0)) return true;
+        if (rule.Weeks == null || rule.Weeks.Count == 0 || rule.Weeks.Contains(0)) return true;
 
         int weekOfMonth = (date.Day - 1) / 7 + 1;
         return rule.Weeks.Contains(weekOfMonth);
@@ -65,4 +68,16 @@ public class LeaveCalculationEngine(IAppDbContext context) : ILeaveCalculationEn
         "SUN" => "Sunday",
         _     => day
     };
+
+    private class WeekOffConfigDto
+    {
+        public List<WeekOffRuleDto>? Rules { get; set; }
+    }
+
+    private class UsageConfigDto
+    {
+        public bool SandwichEnabled { get; set; }
+        public bool IncludeWeekendsInSandwich { get; set; }
+        public bool IncludeHolidaysInSandwich { get; set; }
+    }
 }

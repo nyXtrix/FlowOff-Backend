@@ -13,54 +13,67 @@ namespace LMS.Application.Features.Leaves.Services;
 public class PolicyResolver(IAppDbContext context) : IPolicyResolver
 {
 
-    public async Task<LeaveUsagePolicy> ResolveUsagePolicyAsync(Guid userExternalId, int tenantId)
+    public async Task<LeavePolicy> ResolveUsagePolicyAsync(Guid userExternalId, int tenantId)
     {
         var user = await context.Users
             .Include(u => u.Department)
             .Include(u => u.Role)
             .GetUserByExternalIdAsync(userExternalId);
 
-        var scopes = await context.PolicyScopes.Where(s => s.TenantId == tenantId && s.IsActive && s.UsagePolicyId != null).OrderByDescending(s => s.Priority).ToListAsync();
+        var scopes = await context.PolicyScopes
+            .Where(s => s.TenantId == tenantId && s.IsActive && s.UsagePolicyId != null)
+            .OrderByDescending(s => s.Priority)
+            .ToListAsync();
 
         foreach (var scope in scopes)
         {
-            if (IsMatch(scope, user)) return await context.LeaveUsagePolicies.FindAsync(scope.UsagePolicyId!) ?? throw new AppException(404, "Target usage policy not found", "NOT_FOUND");
+            if (IsMatch(scope, user)) 
+                return await context.LeavePolicies.FindAsync(scope.UsagePolicyId!) 
+                    ?? throw new AppException(404, "Target usage policy not found", "NOT_FOUND");
         }
 
         throw new AppException(404, "No applicable usage policy found", "NOT_FOUND");
     }
 
-    public async Task<WeekOffPolicy> ResolveWeekOffPolicyAsync(Guid userExternalId, int tenantId)
+    public async Task<LeavePolicy> ResolveWeekOffPolicyAsync(Guid userExternalId, int tenantId)
     {
         var user = await context.Users
             .Include(u => u.Department)
             .Include(u => u.Role)
             .GetUserByExternalIdAsync(userExternalId);
 
-        var scopes = await context.PolicyScopes.Where(s => s.TenantId == tenantId && s.IsActive && s.WeekOffPolicyId != null).OrderByDescending(s => s.Priority).ToListAsync();
+        var scopes = await context.PolicyScopes
+            .Where(s => s.TenantId == tenantId && s.IsActive && s.WeekOffPolicyId != null)
+            .OrderByDescending(s => s.Priority)
+            .ToListAsync();
 
         foreach (var scope in scopes)
         {
-            if (IsMatch(scope, user)) return await context.WeekOffPolicies.FindAsync(scope.WeekOffPolicyId!) ?? throw new AppException(404, "Weekoff poolicy missing", "NOT_FOUND");
+            if (IsMatch(scope, user)) 
+                return await context.LeavePolicies.FindAsync(scope.WeekOffPolicyId!) 
+                    ?? throw new AppException(404, "Weekoff policy missing", "NOT_FOUND");
         }
 
         throw new AppException(404, "No week-off policy found", "NOT_FOUND");
     }
 
-    public async Task<BalancePolicy> ResolveBalancePolicyAsync(Guid userExternalId, int leaveTypeId, int tenantId)
+    public async Task<LeavePolicy> ResolveBalancePolicyAsync(Guid userExternalId, int leaveTypeId, int tenantId)
     {
         var user = await context.Users
             .Include(u => u.Department)
             .Include(u => u.Role)
             .GetUserByExternalIdAsync(userExternalId);
 
-        var scopes = await context.PolicyScopes.Where(s => s.TenantId == tenantId && s.IsActive && s.BalancePolicyId != null).OrderByDescending(s => s.Priority).ToListAsync();
+        var scopes = await context.PolicyScopes
+            .Where(s => s.TenantId == tenantId && s.IsActive && s.BalancePolicyId != null)
+            .OrderByDescending(s => s.Priority)
+            .ToListAsync();
 
         foreach (var scope in scopes)
         {
             if (IsMatch(scope, user))
             {
-                var policy = await context.BalancePolicies.FindAsync(scope.BalancePolicyId!);
+                var policy = await context.LeavePolicies.FindAsync(scope.BalancePolicyId!);
 
                 if (policy != null && policy.LeaveTypeId == leaveTypeId)
                 {
@@ -69,7 +82,9 @@ public class PolicyResolver(IAppDbContext context) : IPolicyResolver
             }
         }
 
-        return await context.BalancePolicies.FirstOrDefaultAsync(p => p.TenantId == tenantId && p.LeaveTypeId == leaveTypeId) ?? throw new AppException(404, "No balance policy found for this leave type", "POLICY_NOT_FOUND");
+        return await context.LeavePolicies
+            .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.LeaveTypeId == leaveTypeId && p.Type == LeavePolicyType.Balance) 
+            ?? throw new AppException(404, "No balance policy found for this leave type", "POLICY_NOT_FOUND");
     }
 
     private static bool IsMatch(PolicyScopes scope, User user)

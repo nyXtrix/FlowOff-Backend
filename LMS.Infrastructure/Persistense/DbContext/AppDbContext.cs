@@ -17,13 +17,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<LeaveRequest> LeaveRequests { get; set; } = null!;
     public DbSet<Role> Roles { get; set; } = null!;
-    public DbSet<Permissions> Permissions { get; set; } = null!;
-    public DbSet<RolePermission> RolePermissions { get; set; } = null!;
-    public DbSet<UserRole> UserRoles { get; set; } = null!;
-    public DbSet<UserPermissionOverride> UserPermissionOverrides { get; set; } = null!;
     public DbSet<UserInvite> UserInvites { get; set; } = null!;
     public DbSet<BulkUserInvite> BulkUserInvites { get; set; } = null!;
-    public DbSet<BulkUserInviteRowResult> BulkUserInviteRowResults { get; set; } = null!;
     public DbSet<LeaveType> LeaveTypes { get; set; }
     public DbSet<LeaveBalance> LeaveBalances { get; set; }
     public DbSet<WorkflowRule> WorkflowRules { get; set; }
@@ -33,13 +28,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
     public DbSet<TenantLead> TenantLeads { get; set; }
     public DbSet<Department> Departments { get; set; }
     public DbSet<PolicyScopes> PolicyScopes { get; set; } = null!;
-    public DbSet<LeaveUsagePolicy> LeaveUsagePolicies { get; set; } = null!;
-    public DbSet<WeekOffPolicy> WeekOffPolicies { get; set; } = null!;
-    public DbSet<LeaveAllocationPolicy> LeaveAllocationPolicies { get; set; } = null!;
-    public DbSet<BalancePolicy> BalancePolicies { get; set; } = null!;
-    public DbSet<ApprovalRule> ApprovalRules { get; set; } = null!;
-    public DbSet<ApprovalStep> ApprovalSteps { get; set; } = null!;
-    public DbSet<Gender> Genders { get; set; } = null!;
+    public DbSet<LeavePolicy> LeavePolicies { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -55,20 +44,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
         modelBuilder.Entity<LeaveBalance>().HasIndex(lb => lb.TenantId);
         modelBuilder.Entity<Role>().HasIndex(r => r.TenantId);
         modelBuilder.Entity<User>().HasIndex(u => u.TenantId);
-
-        modelBuilder.Entity<UserRole>().HasKey(x => new { x.UserId, x.RoleId });
-
-        modelBuilder.Entity<RolePermission>().HasKey(x => new { x.RoleId, x.PermissionId });
-        modelBuilder.Entity<RolePermission>()
-            .HasOne(rp => rp.Permissions)
-            .WithMany(p => p.RolePermissions)
-            .HasForeignKey(rp => rp.PermissionId);
-
-        modelBuilder.Entity<UserPermissionOverride>().HasKey(x => new { x.UserId, x.PermissionId });
-        modelBuilder.Entity<UserPermissionOverride>()
-            .HasOne(upo => upo.Permissions)
-            .WithMany()
-            .HasForeignKey(upo => upo.PermissionId);
 
         modelBuilder.Entity<User>().HasOne(u => u.Manager).WithMany(u => u.Repotees).HasForeignKey(u => u.ManagerId).OnDelete(DeleteBehavior.Restrict);
 
@@ -91,6 +66,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
             .HasForeignKey(u => u.DepartmentId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<PolicyScopes>()
+            .HasOne<LeavePolicy>()
+            .WithMany()
+            .HasForeignKey(s => s.WeekOffPolicyId);
+
+        modelBuilder.Entity<PolicyScopes>()
+            .HasOne<LeavePolicy>()
+            .WithMany()
+            .HasForeignKey(s => s.UsagePolicyId);
+
+        modelBuilder.Entity<PolicyScopes>()
+            .HasOne<LeavePolicy>()
+            .WithMany()
+            .HasForeignKey(s => s.BalancePolicyId);
+
         modelBuilder.Entity<Role>().HasData(new Role
         {
             Id = 1,
@@ -103,35 +93,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : Microsoft.En
             Scope = ScopeType.ALL,
             ExternalId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-        });
-
-        modelBuilder.Entity<Gender>().HasData(new Gender
-        {
-            Id = 1,
-            Name = "Male",
-            Value = 1,
-            ExternalId = Guid.Parse("00000000-0000-0000-0000-000000000010"),
-            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, DateTimeKind.Utc),
-            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, DateTimeKind.Utc)
-        },
-        new Gender
-        {
-            Id = 2,
-            Name = "Female",
-            Value = 2,
-            ExternalId = Guid.Parse("00000000-0000-0000-0000-000000000011"),
-            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, DateTimeKind.Utc),
-            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, DateTimeKind.Utc)
-        },
-        new Gender
-        {
-            Id = 3,
-            Name = "Other",
-            Value = 3,
-            ExternalId = Guid.Parse("00000000-0000-0000-0000-000000000012"),
-            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, DateTimeKind.Utc),
-            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, DateTimeKind.Utc)
+            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            PermissionsJson = "[]"
         });
     }
 }

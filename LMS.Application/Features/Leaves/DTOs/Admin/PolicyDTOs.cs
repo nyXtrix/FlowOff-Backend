@@ -51,7 +51,7 @@ public record BalancePolicyRequest(
 
 public record PolicySummaryDto(
     string Name,
-    string ScopeType,
+    int ScopeType,
     string ScopeValue,
     int Priority,
     bool IsActive

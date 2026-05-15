@@ -223,7 +223,7 @@ public class InvitationService(
     public async Task ResendInvitationAsync(Guid userExternalId)
     {
         var user = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == userExternalId && 
-                                                               (u.Status == UserStatus.Pending || u.Status == UserStatus.InActive))
+                                                                (u.Status == UserStatus.Pending || u.Status == UserStatus.InActive))
                    ?? throw new AppException(404, "User not found or already activated", "NOT_FOUND");
 
         if (user.Status == UserStatus.InActive)

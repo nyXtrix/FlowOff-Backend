@@ -1,5 +1,8 @@
+using System.Text.Json.Serialization;
+
 namespace LMS.Domain.Enums;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum LeaveStatus
 {
     Pending, Approved, Rejected, Cancelled, InProgress
@@ -10,9 +13,10 @@ public enum ApprovalStatus
     Waiting, Pending, Approved, Rejected, Skipped
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ApproverType
 {
-    Manager, SpecificUser, Role
+    MANAGER, SPECIFIC_USER, ROLE
 }
 
 public enum RoundingCondition

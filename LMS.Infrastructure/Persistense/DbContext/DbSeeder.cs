@@ -2,40 +2,12 @@ using LMS.Domain.Entities;
 using LMS.Domain.Enums.Authorization;
 using LMS.Domain.Entities.Leave;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace LMS.Infrastructure.Persistense.DbContext;
 
 public static class DbSeeder
 {
-    public static async Task SeedPermissionsAsync(AppDbContext context)
-    {
-        var permissionNames = new List<string>
-        {
-            "DASHBOARD.VIEW",
-            "MY_LEAVES.VIEW", "MY_LEAVES.CREATE", "MY_LEAVES.DELETE",
-            "POLICY.VIEW", "POLICY.CREATE", "POLICY.UPDATE", "POLICY.DELETE",
-            "LEAVE_MGMT.VIEW", "LEAVE_MGMT.CREATE", "LEAVE_MGMT.UPDATE", "LEAVE_MGMT.DELETE",
-            "EMPLOYEE_MGMT.VIEW", "EMPLOYEE_MGMT.CREATE", "EMPLOYEE_MGMT.UPDATE", "EMPLOYEE_MGMT.DELETE",
-            "ORGANIZATION.VIEW", "ORGANIZATION.UPDATE",
-            "APPROVALS.VIEW", "APPROVALS.APPROVE", "APPROVALS.REJECT",
-            "ROLE_MGMT.VIEW", "ROLE_MGMT.CREATE", "ROLE_MGMT.UPDATE", "ROLE_MGMT.DELETE",
-            "PROFILE.VIEW", "PROFILE.UPDATE",
-            "CALENDAR.VIEW", "CALENDAR.CREATE", "CALENDAR.UPDATE", "CALENDAR.DELETE",
-            "ADMIN_DASHBOARD.VIEW"
-        };
-
-        var existingPermissions = await context.Permissions.Select(p => p.Name).ToListAsync();
-        var newPermissions = permissionNames
-            .Where(name => !existingPermissions.Contains(name))
-            .Select(name => new Permissions { Name = name })
-            .ToList();
-
-        if (newPermissions.Any())
-        {
-            await context.Permissions.AddRangeAsync(newPermissions);
-            await context.SaveChangesAsync();
-        }
-    }
     public static async Task SeedHolidaysAsync(AppDbContext context)
     {
         var tenants = await context.Tenants.ToListAsync();
@@ -88,6 +60,21 @@ public static class DbSeeder
     {
         if (!await context.Roles.AnyAsync(r => r.Code == "SUPER_ADMIN"))
         {
+            var allPermissions = new List<string>
+            {
+                "DASHBOARD.VIEW",
+                "MY_LEAVES.VIEW", "MY_LEAVES.CREATE", "MY_LEAVES.DELETE",
+                "POLICY.VIEW", "POLICY.CREATE", "POLICY.UPDATE", "POLICY.DELETE",
+                "LEAVE_MGMT.VIEW", "LEAVE_MGMT.CREATE", "LEAVE_MGMT.UPDATE", "LEAVE_MGMT.DELETE",
+                "EMPLOYEE_MGMT.VIEW", "EMPLOYEE_MGMT.CREATE", "EMPLOYEE_MGMT.UPDATE", "EMPLOYEE_MGMT.DELETE",
+                "ORGANIZATION.VIEW", "ORGANIZATION.UPDATE",
+                "APPROVALS.VIEW", "APPROVALS.APPROVE", "APPROVALS.REJECT",
+                "ROLE_MGMT.VIEW", "ROLE_MGMT.CREATE", "ROLE_MGMT.UPDATE", "ROLE_MGMT.DELETE",
+                "PROFILE.VIEW", "PROFILE.UPDATE",
+                "CALENDAR.VIEW", "CALENDAR.CREATE", "CALENDAR.UPDATE", "CALENDAR.DELETE",
+                "ADMIN_DASHBOARD.VIEW"
+            };
+
             await context.Roles.AddAsync(new Role
             {
                 Name = "Super Admin",
@@ -98,7 +85,8 @@ public static class DbSeeder
                 Scope = ScopeType.ALL,
                 ExternalId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = DateTime.UtcNow,
+                PermissionsJson = JsonSerializer.Serialize(allPermissions)
             });
             await context.SaveChangesAsync();
         }
@@ -113,19 +101,11 @@ public static class DbSeeder
             "LeaveRequests",
             "LeaveBalances",
             "UserInvites",
-            "BulkUserInviteRowResults",
             "BulkUserInvites",
-            "UserPermissionOverrides",
-            "UserRoles",
             "WorkflowSteps",
             "WorkflowRules",
-            "ApprovalSteps",
-            "ApprovalRules",
             "PolicyScopes",
-            "LeaveUsagePolicies",
-            "WeekOffPolicies",
-            "LeaveAllocationPolicies",
-            "BalancePolicies",
+            "LeavePolicies",
             "LeaveTypes",
             "Departments",
             "Holidays",
@@ -141,5 +121,11 @@ public static class DbSeeder
 
         await context.Database.ExecuteSqlRawAsync("DELETE FROM \"Roles\" WHERE \"Code\" != 'SUPER_ADMIN';");
         await context.Database.ExecuteSqlRawAsync("ALTER SEQUENCE \"Roles_Id_seq\" RESTART WITH 2;");
+    }
+
+    public static async Task FullResetAsync(AppDbContext context)
+    {
+        await context.Database.EnsureDeletedAsync();
+        await context.Database.MigrateAsync();
     }
 }

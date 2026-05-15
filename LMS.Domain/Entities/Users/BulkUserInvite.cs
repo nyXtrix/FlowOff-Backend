@@ -16,6 +16,6 @@ public class BulkUserInvite : BaseEntity
     public string? FilePath { get; set; }
     public string? ErrorMessage { get; set; }
 
-    public ICollection<BulkUserInviteRowResult> RowResults { get; set; } = new List<BulkUserInviteRowResult>();
+    public string? RowResultsJson { get; set; }
     public Tenant Tenant { get; set; } = null!;
 }

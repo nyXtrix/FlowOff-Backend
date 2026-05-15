@@ -149,9 +149,11 @@ public class LeaveConfigService(IAppDbContext context, ICacheService cache) : IL
         var rule = new WorkflowRule
         {
             TenantId = tenantId,
+            Name = request.LeaveTypeExternalId.HasValue ? $"Rule for {request.LeaveTypeExternalId}" : "General Rule",
             LeaveTypeId = leaveTypeId,
             MinDays = request.MinDays,
-            MaxDays = request.MaxDays
+            MaxDays = request.MaxDays,
+            IsActive = true
         };
 
         foreach (var stepDto in request.Steps.OrderBy(s => s.Sequence))
@@ -177,7 +179,8 @@ public class LeaveConfigService(IAppDbContext context, ICacheService cache) : IL
                 Sequence = stepDto.Sequence,
                 ApproverType = stepDto.ApproverType,
                 ApproverId = approverId,
-                RoleId = roleId
+                RoleId = roleId,
+                ApproverValue = stepDto.ApproverExternalId?.ToString() ?? stepDto.RoleExternalId?.ToString()
             });
         }
 

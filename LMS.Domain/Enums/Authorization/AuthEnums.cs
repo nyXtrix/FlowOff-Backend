@@ -1,5 +1,8 @@
+using System.Text.Json.Serialization;
+
 namespace LMS.Domain.Enums.Authorization;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ActionType
 {
     VIEW,
@@ -10,6 +13,7 @@ public enum ActionType
     REJECT
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ScopeType
 {
     SELF,

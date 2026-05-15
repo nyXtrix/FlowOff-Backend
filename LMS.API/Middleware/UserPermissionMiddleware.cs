@@ -18,9 +18,13 @@ public class UserPermissionMiddleware(RequestDelegate next)
 
             if (claim != null && Guid.TryParse(claim.Value, out var userId))
             {
-                var userProfile = await authService.GetCurrentUserAsync(userId);
-
-                context.Items["UserPermissions"] = userProfile.Permissions;
+                try
+                {
+                    var userProfile = await authService.GetCurrentUserAsync(userId);
+                    context.Items["UserPermissions"] = userProfile.Permissions;
+                }
+                catch
+                {}
             }
         }
         await next(context);

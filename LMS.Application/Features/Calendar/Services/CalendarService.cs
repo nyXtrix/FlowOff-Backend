@@ -33,7 +33,10 @@ public class CalendarService(IAppDbContext context, IPolicyResolver policyResolv
         try
         {
             var weekOffPolicy = await policyResolver.ResolveWeekOffPolicyAsync(userExternalId, tenantId);
-            var rules = JsonSerializer.Deserialize<List<WeekOffRuleDto>>(weekOffPolicy.RulesJson ?? "[]");
+            
+            var config = JsonSerializer.Deserialize<JsonElement>(weekOffPolicy.ConfigJson);
+            var rulesJson = config.TryGetProperty("Rules", out var r) ? r.GetRawText() : "[]";
+            var rules = JsonSerializer.Deserialize<List<WeekOffRuleDto>>(rulesJson);
 
             if (rules != null)
             {
@@ -43,7 +46,7 @@ public class CalendarService(IAppDbContext context, IPolicyResolver policyResolv
                     var weekOfMonth = (date.Day - 1) / 7 + 1;
 
                     var rule = rules.FirstOrDefault(r => NormalizeDayName(r.Day).Equals(dayName, StringComparison.OrdinalIgnoreCase));
-                    bool isWeekOff = rule != null && (rule.Weeks.Count == 0 || rule.Weeks.Contains(0) || rule.Weeks.Contains(weekOfMonth));
+                    bool isWeekOff = rule != null && (rule.Weeks == null || rule.Weeks.Count == 0 || rule.Weeks.Contains(0) || rule.Weeks.Contains(weekOfMonth));
                     if (isWeekOff)
                     {
                         response.Items.Add(new CalendarItem

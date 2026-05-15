@@ -4,7 +4,7 @@ namespace LMS.Application.Features.Leaves.Interfaces;
 
 public interface IPolicyResolver
 {
-    Task<LeaveUsagePolicy> ResolveUsagePolicyAsync(Guid userExternalId, int tenantId);
-    Task<WeekOffPolicy> ResolveWeekOffPolicyAsync(Guid userExternalId, int tenantId);
-    Task<BalancePolicy> ResolveBalancePolicyAsync(Guid userExternalId, int leaveTypeId, int tenantId);
+    Task<LeavePolicy> ResolveUsagePolicyAsync(Guid userExternalId, int tenantId);
+    Task<LeavePolicy> ResolveWeekOffPolicyAsync(Guid userExternalId, int tenantId);
+    Task<LeavePolicy> ResolveBalancePolicyAsync(Guid userExternalId, int leaveTypeId, int tenantId);
 }

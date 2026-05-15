@@ -97,10 +97,6 @@ public class AuthenticationService(
         var user = await context.Users
             .Include(u => u.Tenant)
             .Include(u => u.Role)
-                .ThenInclude(r => r.RolePermissions)
-                    .ThenInclude(rp => rp.Permissions)
-            .Include(u => u.UserPermissionOverrides)
-                .ThenInclude(upo => upo.Permissions)
             .FirstOrDefaultAsync(u => u.ExternalId == externalId)
                 ?? throw new AppException(404, "User not found.", "USER_NOT_FOUND");
 

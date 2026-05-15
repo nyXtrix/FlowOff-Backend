@@ -270,6 +270,28 @@ public class LeaveService(
         }
 
         request.Status = LeaveStatus.Cancelled;
+        
+        var affectedUserIds = request.ApprovalSteps
+            .Where(a => a.ApproverId.HasValue)
+            .Select(a => a.ApproverId!.Value)
+            .Distinct()
+            .ToList();
+
+        var affectedRoleIds = request.ApprovalSteps
+            .Where(a => a.RoleId.HasValue && (a.Status == ApprovalStatus.Pending || a.Status == ApprovalStatus.Waiting))
+            .Select(a => a.RoleId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (affectedRoleIds.Any())
+        {
+            var roleUserIds = await context.Users
+                .Where(u => affectedRoleIds.Contains(u.RoleId) && u.TenantId == user.TenantId)
+                .Select(u => u.Id)
+                .ToListAsync();
+            affectedUserIds.AddRange(roleUserIds);
+        }
+
         foreach (var app in request.ApprovalSteps.Where(a => a.Status == ApprovalStatus.Pending || a.Status == ApprovalStatus.Waiting))
         {
             app.Status = ApprovalStatus.Skipped;
@@ -279,6 +301,20 @@ public class LeaveService(
 
         await cache.RemoveAsync($"bal_{userExternalId}");
         await cache.RemoveByPrefixAsync($"hist_{userExternalId}");
+
+        foreach (var affectedId in affectedUserIds.Distinct())
+        {
+            var affectedExtId = await context.Users
+                .Where(u => u.Id == affectedId)
+                .Select(u => u.ExternalId)
+                .FirstOrDefaultAsync();
+
+            if (affectedExtId != Guid.Empty)
+            {
+                await cache.RemoveAsync($"appr_stats_{affectedExtId}");
+                await cache.RemoveByPrefixAsync($"appr_{affectedExtId}");
+            }
+        }
     }
 
     public async Task<List<HolidayResponse>> GetHolidaysAsync(int tenantId)

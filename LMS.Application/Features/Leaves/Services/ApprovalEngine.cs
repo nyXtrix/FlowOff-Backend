@@ -46,26 +46,30 @@ public class ApprovalEngine(IAppDbContext context, IRuleEvaluator evaluator, ILo
             }
         }
 
-        var matchingRules = await context.ApprovalRules
+        var matchingRules = await context.WorkflowRules
             .Include(r => r.Steps)
             .Where(r => r.TenantId == tenantId && r.IsActive)
+            .Where(r => r.LeaveTypeId == null || r.LeaveTypeId == leaveTypeId)
             .OrderBy(r => r.Priority)
             .ToListAsync();
 
         foreach (var rule in matchingRules)
         {
+            if (rule.MinDays > 0 && totalDays < rule.MinDays) continue;
+            if (rule.MaxDays > 0 && totalDays > rule.MaxDays) continue;
+
             if (evaluator.Evaluate(rule.ConditionJson, evalContext))
             {
                 foreach (var s in rule.Steps.OrderBy(x => x.Sequence))
                 {
-                    if (s.ApproverType == ApproverType.Manager)
+                    if (s.ApproverType == ApproverType.MANAGER)
                     {
                         if (user.ManagerId.HasValue)
                         {
                             AddStepToChain(chain, addedTargets, approverId: user.ManagerId);
                         }
                     }
-                    else if (s.ApproverType == ApproverType.Role)
+                    else if (s.ApproverType == ApproverType.ROLE)
                     {
                         if (int.TryParse(s.ApproverValue, out var rid))
                         {
@@ -76,8 +80,12 @@ public class ApprovalEngine(IAppDbContext context, IRuleEvaluator evaluator, ILo
                             var role = await context.Roles.FirstOrDefaultAsync(r => r.ExternalId == guid && (r.TenantId == tenantId || r.TenantId == null));
                             if (role != null) AddStepToChain(chain, addedTargets, roleId: role.Id);
                         }
+                        else if (s.RoleId.HasValue)
+                        {
+                            AddStepToChain(chain, addedTargets, roleId: s.RoleId.Value);
+                        }
                     }
-                    else if (s.ApproverType == ApproverType.SpecificUser)
+                    else if (s.ApproverType == ApproverType.SPECIFIC_USER)
                     {
                         if (int.TryParse(s.ApproverValue, out var uid))
                         {
@@ -87,6 +95,10 @@ public class ApprovalEngine(IAppDbContext context, IRuleEvaluator evaluator, ILo
                         {
                             var targetUser = await context.Users.FirstOrDefaultAsync(u => u.ExternalId == guid && u.TenantId == tenantId);
                             if (targetUser != null) AddStepToChain(chain, addedTargets, approverId: targetUser.Id);
+                        }
+                        else if (s.ApproverId.HasValue)
+                        {
+                            AddStepToChain(chain, addedTargets, approverId: s.ApproverId.Value);
                         }
                     }
                 }
