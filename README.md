@@ -43,7 +43,7 @@ The project follows the **Clean Architecture** (Onion Architecture) pattern, ens
 
 ---
 
-## 📧 Email Service Transition
+## Email Service Transition
 
 We recently migrated our email notification infrastructure to provide a more robust and secure experience.
 
